@@ -6,9 +6,14 @@ public sealed class OverlayManager : IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly WeChatWindowLocator _windowLocator = new();
+    private readonly PrivacyPolicyService _privacyPolicy = new();
     private readonly Dictionary<IntPtr, OverlayWindow> _overlays = new();
     private readonly DispatcherTimer _timer;
     private FocusFrameWindow? _focusFrame;
+
+    public event EventHandler<PrivacySnapshot>? SnapshotChanged;
+
+    public PrivacySnapshot? LastSnapshot { get; private set; }
 
     public OverlayManager(SettingsService settingsService)
     {
@@ -30,7 +35,7 @@ public sealed class OverlayManager : IDisposable
 
     private void OnSettingsChanged(object? sender, AppSettings settings)
     {
-        if (!settings.PrivacyEnabled)
+        if (!settings.Privacy.Enabled)
         {
             CloseAll();
             return;
@@ -54,7 +59,7 @@ public sealed class OverlayManager : IDisposable
     private void RefreshCore()
     {
         var settings = _settingsService.Current;
-        if (!settings.PrivacyEnabled)
+        if (!settings.Privacy.Enabled)
         {
             CloseAll();
             return;
@@ -62,15 +67,21 @@ public sealed class OverlayManager : IDisposable
 
         var windows = _windowLocator.FindVisibleWindows(settings);
         var foreground = NativeMethods.GetForegroundWindow();
-        var foregroundWeChat = windows.FirstOrDefault(window => window.Handle == foreground);
-        var activeBounds = foregroundWeChat?.Bounds;
+        var snapshot = _privacyPolicy.CreateSnapshot(windows, foreground, settings);
+        LastSnapshot = snapshot;
+        SnapshotChanged?.Invoke(this, snapshot);
+
+        var activeWindowIsVisible = snapshot.ActiveWindow is not null &&
+                                    settings.Privacy.Mode is not PrivacyMode.AwayCover and not PrivacyMode.CleanScreen;
+        var activeBounds = activeWindowIsVisible ? snapshot.ActiveWindow?.Bounds : null;
         var liveHandles = new HashSet<IntPtr>();
 
-        UpdateFocusFrame(foregroundWeChat, settings);
+        UpdateFocusFrame(activeWindowIsVisible ? snapshot.ActiveWindow : null, settings);
 
-        foreach (var window in windows)
+        foreach (var decision in snapshot.Decisions)
         {
-            if (foregroundWeChat is not null && window.Handle == foregroundWeChat.Handle)
+            var window = decision.Window;
+            if (!decision.ShouldCover)
             {
                 CloseOverlay(window.Handle);
                 continue;
@@ -81,12 +92,12 @@ public sealed class OverlayManager : IDisposable
             {
                 overlay = new OverlayWindow(window.Handle);
                 _overlays[window.Handle] = overlay;
-                overlay.UpdateFrom(window, settings, activeBounds);
+                overlay.UpdateFrom(decision, settings, activeBounds);
                 overlay.Show();
             }
             else
             {
-                overlay.UpdateFrom(window, settings, activeBounds);
+                overlay.UpdateFrom(decision, settings, activeBounds);
             }
         }
 

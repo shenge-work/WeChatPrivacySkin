@@ -40,17 +40,38 @@ public partial class FocusFrameWindow : Window
 
     public void UpdateFrom(WeChatWindowInfo target, AppSettings settings)
     {
-        var palette = ThemeCatalog.Get(settings.Theme);
-        Frame.BorderBrush = new SolidColorBrush(MediaColor.FromArgb(
+        var theme = ThemeCatalog.Get(settings.ThemePackId);
+        var accent = new SolidColorBrush(MediaColor.FromArgb(
             220,
-            palette.AccentColor.R,
-            palette.AccentColor.G,
-            palette.AccentColor.B));
+            theme.AccentColor.R,
+            theme.AccentColor.G,
+            theme.AccentColor.B));
+        Frame.BorderBrush = accent;
+        Frame.BorderThickness = new Thickness(theme.FrameThickness);
+        Frame.CornerRadius = new CornerRadius(theme.CornerRadius + 6);
 
-        PositionOver(target, settings);
+        Glow.BorderBrush = new SolidColorBrush(MediaColor.FromArgb(
+            180,
+            theme.SecondaryAccentColor.R,
+            theme.SecondaryAccentColor.G,
+            theme.SecondaryAccentColor.B));
+        Glow.CornerRadius = new CornerRadius(theme.CornerRadius + 12);
+
+        SideBadge.Background = new SolidColorBrush(MediaColor.FromArgb(
+            230,
+            theme.PanelColor.R,
+            theme.PanelColor.G,
+            theme.PanelColor.B));
+        SideBadge.BorderBrush = accent;
+        SideBadge.BorderThickness = new Thickness(1);
+        SideBadge.CornerRadius = new CornerRadius(Math.Max(6, theme.CornerRadius));
+        SideBadgeText.Text = PrivacyModeCatalog.DisplayName(settings.Privacy.Mode);
+        SideBadgeText.Foreground = new SolidColorBrush(theme.PrimaryTextColor);
+
+        PositionOver(target, settings, theme);
     }
 
-    private void PositionOver(WeChatWindowInfo target, AppSettings settings)
+    private void PositionOver(WeChatWindowInfo target, AppSettings settings, ThemePack theme)
     {
         var dpi = NativeMethods.GetDpiForWindow(target.Handle);
         if (dpi == 0)
@@ -59,10 +80,16 @@ public partial class FocusFrameWindow : Window
         }
 
         var scale = 96.0 / dpi;
-        Width = Math.Max(1, target.Bounds.Width * scale);
-        Height = Math.Max(1, target.Bounds.Height * scale);
-        Left = target.Bounds.Left * scale;
-        Top = target.Bounds.Top * scale;
+        var outset = theme.Outset;
+        var left = target.Bounds.Left - outset;
+        var top = target.Bounds.Top - outset;
+        var width = target.Bounds.Width + outset * 2;
+        var height = target.Bounds.Height + outset * 2;
+
+        Width = Math.Max(1, width * scale);
+        Height = Math.Max(1, height * scale);
+        Left = left * scale;
+        Top = top * scale;
 
         if (_windowHandle == IntPtr.Zero)
         {
@@ -76,10 +103,10 @@ public partial class FocusFrameWindow : Window
         NativeMethods.SetWindowPos(
             _windowHandle,
             zOrder,
-            (int)Math.Round(target.Bounds.Left),
-            (int)Math.Round(target.Bounds.Top),
-            (int)Math.Round(target.Bounds.Width),
-            (int)Math.Round(target.Bounds.Height),
+            (int)Math.Round(left),
+            (int)Math.Round(top),
+            (int)Math.Round(width),
+            (int)Math.Round(height),
             NativeMethods.SWP_NOACTIVATE |
             NativeMethods.SWP_SHOWWINDOW |
             NativeMethods.SWP_NOOWNERZORDER);

@@ -8,7 +8,13 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\AppIcon\app.ico</ApplicationIcon>
     <AssemblyName>WeChatPrivacySkin</AssemblyName>
     <RootNamespace>WeChatPrivacySkin</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Assets\AppIcon\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\AppIcon\app-icon-design.md" CopyToOutputDirectory="Never" />
+    <Content Include="Assets\Themes\README.md" CopyToOutputDirectory="Never" />
+  </ItemGroup>
 </Project>

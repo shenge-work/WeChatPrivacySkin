@@ -8,7 +8,7 @@ public partial class App : System.Windows.Application
     private OverlayManager? _overlayManager;
     private TrayController? _trayController;
     private HotkeyManager? _hotkeyManager;
-    private SettingsWindow? _settingsWindow;
+    private ManagementWindow? _managementWindow;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -22,40 +22,57 @@ public partial class App : System.Windows.Application
 
         _trayController = new TrayController(
             _settingsService,
-            showSettings: ShowSettingsWindow,
+            showManagement: ShowManagementWindow,
             exitApplication: Shutdown);
 
         _hotkeyManager = new HotkeyManager();
         _hotkeyManager.TogglePrivacyRequested += (_, _) => TogglePrivacyMode();
         _hotkeyManager.CycleThemeRequested += (_, _) => CycleTheme();
+        _hotkeyManager.CleanScreenRequested += (_, _) => ActivateCleanScreen();
         _hotkeyManager.Start();
+
+        if (e.Args.Any(arg => string.Equals(arg, "--show-management", StringComparison.OrdinalIgnoreCase)))
+        {
+            Dispatcher.BeginInvoke(ShowManagementWindow);
+        }
     }
 
-    private void ShowSettingsWindow()
+    private void ShowManagementWindow()
     {
-        if (_settingsService is null)
+        if (_settingsService is null || _overlayManager is null)
         {
             return;
         }
 
-        if (_settingsWindow is null)
+        if (_managementWindow is null)
         {
-            _settingsWindow = new SettingsWindow(_settingsService);
-            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _managementWindow = new ManagementWindow(_settingsService, _overlayManager, Shutdown);
+            _managementWindow.Closed += (_, _) => _managementWindow = null;
         }
 
-        _settingsWindow.Show();
-        _settingsWindow.Activate();
+        _managementWindow.Show();
+        _managementWindow.Activate();
     }
 
     private void TogglePrivacyMode()
     {
-        _settingsService?.Update(settings => settings.PrivacyEnabled = !settings.PrivacyEnabled);
+        _settingsService?.Update(settings => settings.Privacy.Enabled = !settings.Privacy.Enabled);
     }
 
     private void CycleTheme()
     {
-        _settingsService?.Update(settings => settings.Theme = ThemeCatalog.Next(settings.Theme));
+        _settingsService?.Update(settings => settings.ThemePackId = ThemeCatalog.Next(settings.ThemePackId));
+    }
+
+    private void ActivateCleanScreen()
+    {
+        _settingsService?.Update(settings =>
+        {
+            settings.Privacy.Enabled = true;
+            settings.Privacy.Mode = settings.Privacy.Mode == PrivacyMode.CleanScreen
+                ? PrivacyMode.DailyProtection
+                : PrivacyMode.CleanScreen;
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)

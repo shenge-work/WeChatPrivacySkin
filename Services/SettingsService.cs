@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -9,6 +10,8 @@ public sealed class SettingsService
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Converters = { new JsonStringEnumConverter() }
     };
 
@@ -42,6 +45,7 @@ public sealed class SettingsService
                 var json = File.ReadAllText(SettingsPath);
                 Current = JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
                 Normalize();
+                Save();
             }
             catch
             {
@@ -77,6 +81,29 @@ public sealed class SettingsService
 
     private void Normalize()
     {
+        if (Current.PrivacyEnabled.HasValue)
+        {
+            Current.Privacy.Enabled = Current.PrivacyEnabled.Value;
+            Current.PrivacyEnabled = null;
+        }
+
+        if (Current.Theme.HasValue)
+        {
+            Current.ThemePackId = ThemeCatalog.MapLegacy(Current.Theme.Value);
+            Current.Theme = null;
+        }
+
+        Current.Privacy ??= new PrivacyProfile();
+        if (!Enum.IsDefined(Current.Privacy.Mode))
+        {
+            Current.Privacy.Mode = PrivacyMode.DailyProtection;
+        }
+
+        if (string.IsNullOrWhiteSpace(Current.ThemePackId) || !ThemeCatalog.Contains(Current.ThemePackId))
+        {
+            Current.ThemePackId = ThemeCatalog.DefaultThemeId;
+        }
+
         Current.OverlayOpacity = Math.Clamp(Current.OverlayOpacity, 0.35, 0.95);
         if (string.IsNullOrWhiteSpace(Current.WeChatExecutablePath))
         {
@@ -87,6 +114,22 @@ public sealed class SettingsService
             !File.Exists(Current.BackgroundImagePath))
         {
             Current.BackgroundImagePath = null;
+        }
+
+        Current.WindowRules ??= [];
+        MergeDefaultWindowRules();
+    }
+
+    private void MergeDefaultWindowRules()
+    {
+        foreach (var defaultRule in WindowRule.Defaults())
+        {
+            if (Current.WindowRules.Any(rule => string.Equals(rule.Id, defaultRule.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            Current.WindowRules.Add(defaultRule);
         }
     }
 }

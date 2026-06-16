@@ -13,3 +13,4 @@ if (-not (Test-Path -LiteralPath $dotnet)) {
 }
 
 & $dotnet publish -c Release -r win-x64 --self-contained false
+exit $LASTEXITCODE

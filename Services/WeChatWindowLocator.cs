@@ -36,16 +36,20 @@ public sealed class WeChatWindowLocator
             }
 
             var bounds = GetWindowBounds(hWnd);
-            if (bounds.Width < 120 || bounds.Height < 90)
+            if (bounds.Width < 80 || bounds.Height < 50)
             {
                 return true;
             }
 
+            var title = GetWindowTitle(hWnd);
+            var kind = ClassifyWindow(title, bounds);
             results.Add(new WeChatWindowInfo(
                 hWnd,
                 unchecked((int)processId),
-                GetWindowTitle(hWnd),
-                bounds));
+                title,
+                bounds,
+                kind,
+                IsUtilityLike(kind, bounds)));
 
             return true;
         }, IntPtr.Zero);
@@ -136,5 +140,60 @@ public sealed class WeChatWindowLocator
         var builder = new StringBuilder(length + 1);
         NativeMethods.GetWindowText(hWnd, builder, builder.Capacity);
         return string.IsNullOrWhiteSpace(builder.ToString()) ? "微信窗口" : builder.ToString();
+    }
+
+    private static WeChatWindowKind ClassifyWindow(string title, Rect bounds)
+    {
+        if (ContainsAny(title, "登录", "扫码", "确认登录"))
+        {
+            return WeChatWindowKind.Login;
+        }
+
+        if (ContainsAny(title, "文件", "File", "传输"))
+        {
+            return WeChatWindowKind.FileTransfer;
+        }
+
+        if (ContainsAny(title, "图片", "照片", "视频", "Image", "Photo", "Video"))
+        {
+            return WeChatWindowKind.ImagePreview;
+        }
+
+        if (ContainsAny(title, "搜索", "Search"))
+        {
+            return WeChatWindowKind.Search;
+        }
+
+        if (ContainsAny(title, "收藏", "Favorite"))
+        {
+            return WeChatWindowKind.Favorite;
+        }
+
+        if (ContainsAny(title, "发送给", "转发", "Forward"))
+        {
+            return WeChatWindowKind.Forward;
+        }
+
+        if (ContainsAny(title, "通知", "提醒", "Notification"))
+        {
+            return WeChatWindowKind.Notification;
+        }
+
+        if (bounds.Width < 360 || bounds.Height < 260)
+        {
+            return WeChatWindowKind.UtilityPopup;
+        }
+
+        return WeChatWindowKind.MainOrChat;
+    }
+
+    private static bool IsUtilityLike(WeChatWindowKind kind, Rect bounds)
+    {
+        return kind != WeChatWindowKind.MainOrChat || bounds.Width < 520 || bounds.Height < 360;
+    }
+
+    private static bool ContainsAny(string text, params string[] terms)
+    {
+        return terms.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 }

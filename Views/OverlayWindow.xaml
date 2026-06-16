@@ -15,6 +15,29 @@
         <Rectangle x:Name="PatternLayer"/>
         <Rectangle x:Name="TintLayer"/>
 
+        <Border x:Name="OuterFrame"
+                Margin="6"
+                BorderThickness="3"
+                Background="Transparent"/>
+
+        <Border x:Name="CornerSticker"
+                Width="116"
+                Height="34"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,14,14,0"
+                Padding="12,0"
+                RenderTransformOrigin="0.5,0.5">
+            <Border.RenderTransform>
+                <RotateTransform Angle="4"/>
+            </Border.RenderTransform>
+            <TextBlock x:Name="CornerStickerText"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       FontSize="12"
+                       FontWeight="Bold"/>
+        </Border>
+
         <Border x:Name="Panel"
                 Margin="22"
                 Padding="22"
@@ -44,7 +67,8 @@
                         <TextBlock x:Name="SubtitleText"
                                    Text="非当前微信窗口已脱敏"
                                    Margin="0,4,0,0"
-                                   FontSize="12"/>
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
                     </StackPanel>
                 </DockPanel>
 

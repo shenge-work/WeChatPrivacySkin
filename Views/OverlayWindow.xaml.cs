@@ -6,6 +6,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
+using MediaPen = System.Windows.Media.Pen;
+using WpfPoint = System.Windows.Point;
 
 namespace WeChatPrivacySkin;
 
@@ -42,14 +44,15 @@ public partial class OverlayWindow : Window
         NativeMethods.SetWindowLongPtr(_windowHandle, NativeMethods.GWL_EXSTYLE, new IntPtr(extendedStyle));
     }
 
-    public void UpdateFrom(WeChatWindowInfo target, AppSettings settings, Rect? activeWeChatBounds)
+    public void UpdateFrom(PrivacyDecision decision, AppSettings settings, Rect? activeWeChatBounds)
     {
-        ApplyTheme(settings);
-        PositionOver(target, settings);
-        ApplyActiveWindowCutout(target.Bounds, activeWeChatBounds);
+        var theme = ThemeCatalog.Get(settings.ThemePackId);
+        ApplyTheme(settings, theme, decision);
+        var overlayBounds = PositionOver(decision.Window, settings, theme);
+        ApplyActiveWindowCutout(overlayBounds, activeWeChatBounds);
     }
 
-    private void PositionOver(WeChatWindowInfo target, AppSettings settings)
+    private Rect PositionOver(WeChatWindowInfo target, AppSettings settings, ThemePack theme)
     {
         var dpi = NativeMethods.GetDpiForWindow(target.Handle);
         if (dpi == 0)
@@ -58,14 +61,21 @@ public partial class OverlayWindow : Window
         }
 
         var scale = 96.0 / dpi;
-        Width = Math.Max(1, target.Bounds.Width * scale);
-        Height = Math.Max(1, target.Bounds.Height * scale);
-        Left = target.Bounds.Left * scale;
-        Top = target.Bounds.Top * scale;
+        var outset = theme.Outset;
+        var overlayBounds = new Rect(
+            target.Bounds.Left - outset,
+            target.Bounds.Top - outset,
+            target.Bounds.Width + outset * 2,
+            target.Bounds.Height + outset * 2);
+
+        Width = Math.Max(1, overlayBounds.Width * scale);
+        Height = Math.Max(1, overlayBounds.Height * scale);
+        Left = overlayBounds.Left * scale;
+        Top = overlayBounds.Top * scale;
 
         if (_windowHandle == IntPtr.Zero)
         {
-            return;
+            return overlayBounds;
         }
 
         var zOrder = settings.OverlayAlwaysOnTop
@@ -75,50 +85,85 @@ public partial class OverlayWindow : Window
         NativeMethods.SetWindowPos(
             _windowHandle,
             zOrder,
-            (int)Math.Round(target.Bounds.Left),
-            (int)Math.Round(target.Bounds.Top),
-            (int)Math.Round(target.Bounds.Width),
-            (int)Math.Round(target.Bounds.Height),
+            (int)Math.Round(overlayBounds.Left),
+            (int)Math.Round(overlayBounds.Top),
+            (int)Math.Round(overlayBounds.Width),
+            (int)Math.Round(overlayBounds.Height),
             NativeMethods.SWP_NOACTIVATE |
             NativeMethods.SWP_SHOWWINDOW |
             NativeMethods.SWP_NOOWNERZORDER);
+
+        return overlayBounds;
     }
 
-    private void ApplyTheme(AppSettings settings)
+    private void ApplyTheme(AppSettings settings, ThemePack theme, PrivacyDecision decision)
     {
-        var palette = ThemeCatalog.Get(settings.Theme);
-        var overlayOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity, 0.35, 0.95) * 255);
-        var panelOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity + 0.08, 0.45, 0.98) * 255);
+        var mode = settings.Privacy.Mode;
+        var boost = mode is PrivacyMode.MeetingShare or PrivacyMode.AwayCover or PrivacyMode.CleanScreen ? 0.12 : 0;
+        var overlayOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity + boost, 0.35, 0.98) * 255);
+        var panelOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity + 0.08 + boost, 0.45, 0.99) * 255);
 
         TintLayer.Fill = new SolidColorBrush(MediaColor.FromArgb(
             overlayOpacity,
-            palette.OverlayColor.R,
-            palette.OverlayColor.G,
-            palette.OverlayColor.B));
+            theme.OverlayColor.R,
+            theme.OverlayColor.G,
+            theme.OverlayColor.B));
 
-        PatternLayer.Fill = CreatePatternBrush(palette);
+        PatternLayer.Fill = CreatePatternBrush(theme);
         ImageLayer.Fill = CreateImageBrush(settings.BackgroundImagePath);
 
         Panel.Background = new SolidColorBrush(MediaColor.FromArgb(
             panelOpacity,
-            palette.PanelColor.R,
-            palette.PanelColor.G,
-            palette.PanelColor.B));
-        Panel.BorderBrush = new SolidColorBrush(MediaColor.FromArgb(210, palette.AccentColor.R, palette.AccentColor.G, palette.AccentColor.B));
+            theme.PanelColor.R,
+            theme.PanelColor.G,
+            theme.PanelColor.B));
+        Panel.BorderBrush = new SolidColorBrush(MediaColor.FromArgb(210, theme.AccentColor.R, theme.AccentColor.G, theme.AccentColor.B));
+        Panel.CornerRadius = new CornerRadius(theme.CornerRadius);
 
-        StatusDot.Background = new SolidColorBrush(palette.AccentColor);
-        TitleText.Foreground = new SolidColorBrush(palette.PrimaryTextColor);
-        SubtitleText.Foreground = new SolidColorBrush(palette.SecondaryTextColor);
-        WatermarkText.Foreground = new SolidColorBrush(palette.SecondaryTextColor);
+        OuterFrame.BorderBrush = new SolidColorBrush(MediaColor.FromArgb(190, theme.AccentColor.R, theme.AccentColor.G, theme.AccentColor.B));
+        OuterFrame.CornerRadius = new CornerRadius(theme.CornerRadius + 8);
+        OuterFrame.BorderThickness = new Thickness(theme.FrameThickness);
+
+        CornerSticker.Background = new SolidColorBrush(MediaColor.FromArgb(230, theme.DecorationColor.R, theme.DecorationColor.G, theme.DecorationColor.B));
+        CornerSticker.CornerRadius = new CornerRadius(Math.Max(8, theme.CornerRadius));
+        CornerStickerText.Text = theme.BadgeText;
+        CornerStickerText.Foreground = new SolidColorBrush(theme.PrimaryTextColor);
+
+        StatusDot.Background = new SolidColorBrush(theme.AccentColor);
+        TitleText.Text = ModeTitle(mode);
+        SubtitleText.Text = decision.Reason + ModeSuffix(mode, settings);
+        TitleText.Foreground = new SolidColorBrush(theme.PrimaryTextColor);
+        SubtitleText.Foreground = new SolidColorBrush(theme.SecondaryTextColor);
+        WatermarkText.Text = $"{theme.DisplayName} · {PrivacyModeCatalog.DisplayName(mode)}";
+        WatermarkText.Foreground = new SolidColorBrush(theme.SecondaryTextColor);
 
         foreach (var shape in PlaceholderShapes())
         {
             shape.Background = new SolidColorBrush(MediaColor.FromArgb(
                 180,
-                palette.PlaceholderColor.R,
-                palette.PlaceholderColor.G,
-                palette.PlaceholderColor.B));
+                theme.PlaceholderColor.R,
+                theme.PlaceholderColor.G,
+                theme.PlaceholderColor.B));
         }
+    }
+
+    private static string ModeTitle(PrivacyMode mode) => mode switch
+    {
+        PrivacyMode.MeetingShare => "会议共享保护",
+        PrivacyMode.AwayCover => "离席保护",
+        PrivacyMode.CleanScreen => "快速净屏",
+        PrivacyMode.FocusChat => "专注聊天",
+        _ => "微信隐私守护"
+    };
+
+    private static string ModeSuffix(PrivacyMode mode, AppSettings settings)
+    {
+        if (mode == PrivacyMode.MeetingShare && settings.Privacy.ShowMeetingWarning)
+        {
+            return "。共享单个微信窗口可能绕过外层遮罩。";
+        }
+
+        return string.Empty;
     }
 
     private IEnumerable<System.Windows.Controls.Border> PlaceholderShapes()
@@ -163,19 +208,43 @@ public partial class OverlayWindow : Window
         }
     }
 
-    private static MediaBrush CreatePatternBrush(ThemePalette palette)
+    private static MediaBrush CreatePatternBrush(ThemePack theme)
     {
         var group = new DrawingGroup();
         var transparent = new SolidColorBrush(Colors.Transparent);
-        var accent = new SolidColorBrush(MediaColor.FromArgb(38, palette.AccentColor.R, palette.AccentColor.G, palette.AccentColor.B));
-        group.Children.Add(new GeometryDrawing(transparent, null, new RectangleGeometry(new Rect(0, 0, 18, 18))));
-        group.Children.Add(new GeometryDrawing(accent, null, new RectangleGeometry(new Rect(0, 0, 9, 9))));
-        group.Children.Add(new GeometryDrawing(accent, null, new RectangleGeometry(new Rect(9, 9, 9, 9))));
+        var accent = new SolidColorBrush(MediaColor.FromArgb(46, theme.AccentColor.R, theme.AccentColor.G, theme.AccentColor.B));
+        var secondary = new SolidColorBrush(MediaColor.FromArgb(36, theme.SecondaryAccentColor.R, theme.SecondaryAccentColor.G, theme.SecondaryAccentColor.B));
+        group.Children.Add(new GeometryDrawing(transparent, null, new RectangleGeometry(new Rect(0, 0, 24, 24))));
+
+        switch (theme.Pattern)
+        {
+            case ThemePatternKind.Dots:
+                group.Children.Add(new GeometryDrawing(accent, null, new EllipseGeometry(new WpfPoint(6, 6), 2.2, 2.2)));
+                group.Children.Add(new GeometryDrawing(secondary, null, new EllipseGeometry(new WpfPoint(18, 18), 1.8, 1.8)));
+                break;
+            case ThemePatternKind.Diagonal:
+            case ThemePatternKind.Neon:
+                group.Children.Add(new GeometryDrawing(null, new MediaPen(accent, 2), new LineGeometry(new WpfPoint(0, 24), new WpfPoint(24, 0))));
+                group.Children.Add(new GeometryDrawing(null, new MediaPen(secondary, 1), new LineGeometry(new WpfPoint(-8, 24), new WpfPoint(24, -8))));
+                break;
+            case ThemePatternKind.Pixels:
+                group.Children.Add(new GeometryDrawing(accent, null, new RectangleGeometry(new Rect(0, 0, 8, 8))));
+                group.Children.Add(new GeometryDrawing(secondary, null, new RectangleGeometry(new Rect(16, 16, 8, 8))));
+                break;
+            case ThemePatternKind.Paper:
+                group.Children.Add(new GeometryDrawing(null, new MediaPen(accent, 0.8), new LineGeometry(new WpfPoint(0, 7), new WpfPoint(24, 8))));
+                group.Children.Add(new GeometryDrawing(null, new MediaPen(secondary, 0.8), new LineGeometry(new WpfPoint(0, 18), new WpfPoint(24, 17))));
+                break;
+            default:
+                group.Children.Add(new GeometryDrawing(accent, null, new RectangleGeometry(new Rect(0, 0, 12, 12))));
+                group.Children.Add(new GeometryDrawing(secondary, null, new RectangleGeometry(new Rect(12, 12, 12, 12))));
+                break;
+        }
 
         var brush = new DrawingBrush(group)
         {
             TileMode = TileMode.Tile,
-            Viewport = new Rect(0, 0, 18, 18),
+            Viewport = new Rect(0, 0, 24, 24),
             ViewportUnits = BrushMappingMode.Absolute,
             Opacity = 0.6
         };
@@ -183,7 +252,7 @@ public partial class OverlayWindow : Window
         return brush;
     }
 
-    private void ApplyActiveWindowCutout(Rect targetBounds, Rect? activeBounds)
+    private void ApplyActiveWindowCutout(Rect overlayBounds, Rect? activeBounds)
     {
         if (_windowHandle == IntPtr.Zero)
         {
@@ -193,8 +262,8 @@ public partial class OverlayWindow : Window
         var fullRegion = NativeMethods.CreateRectRgn(
             0,
             0,
-            Math.Max(1, (int)Math.Round(targetBounds.Width)),
-            Math.Max(1, (int)Math.Round(targetBounds.Height)));
+            Math.Max(1, (int)Math.Round(overlayBounds.Width)),
+            Math.Max(1, (int)Math.Round(overlayBounds.Height)));
 
         if (fullRegion == IntPtr.Zero)
         {
@@ -203,14 +272,14 @@ public partial class OverlayWindow : Window
 
         if (activeBounds is not null)
         {
-            var intersection = Rect.Intersect(targetBounds, activeBounds.Value);
+            var intersection = Rect.Intersect(overlayBounds, activeBounds.Value);
             if (!intersection.IsEmpty && intersection.Width > 0 && intersection.Height > 0)
             {
                 var cutout = NativeMethods.CreateRectRgn(
-                    Math.Max(0, (int)Math.Floor(intersection.Left - targetBounds.Left)),
-                    Math.Max(0, (int)Math.Floor(intersection.Top - targetBounds.Top)),
-                    Math.Min((int)Math.Ceiling(targetBounds.Width), (int)Math.Ceiling(intersection.Right - targetBounds.Left)),
-                    Math.Min((int)Math.Ceiling(targetBounds.Height), (int)Math.Ceiling(intersection.Bottom - targetBounds.Top)));
+                    Math.Max(0, (int)Math.Floor(intersection.Left - overlayBounds.Left)),
+                    Math.Max(0, (int)Math.Floor(intersection.Top - overlayBounds.Top)),
+                    Math.Min((int)Math.Ceiling(overlayBounds.Width), (int)Math.Ceiling(intersection.Right - overlayBounds.Left)),
+                    Math.Min((int)Math.Ceiling(overlayBounds.Height), (int)Math.Ceiling(intersection.Bottom - overlayBounds.Top)));
 
                 if (cutout != IntPtr.Zero)
                 {

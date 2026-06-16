@@ -11,10 +11,29 @@
         Width="420"
         Height="320">
     <Grid ClipToBounds="True">
+        <Border x:Name="Glow"
+                Margin="1"
+                BorderThickness="8"
+                CornerRadius="12"
+                Background="Transparent"
+                Opacity="0.22"/>
         <Border x:Name="Frame"
                 Margin="3"
                 BorderThickness="3"
                 CornerRadius="8"
                 Background="Transparent"/>
+        <Border x:Name="SideBadge"
+                Width="86"
+                Height="28"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="16,9,0,0"
+                Padding="10,0">
+            <TextBlock x:Name="SideBadgeText"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       FontSize="11"
+                       FontWeight="Bold"/>
+        </Border>
     </Grid>
 </Window>

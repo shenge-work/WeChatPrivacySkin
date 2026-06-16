@@ -7,12 +7,15 @@ public sealed class HotkeyManager : IDisposable
 {
     private const int TogglePrivacyHotkeyId = 1001;
     private const int CycleThemeHotkeyId = 1002;
+    private const int CleanScreenHotkeyId = 1003;
 
     private HwndSource? _source;
 
     public event EventHandler? TogglePrivacyRequested;
 
     public event EventHandler? CycleThemeRequested;
+
+    public event EventHandler? CleanScreenRequested;
 
     public void Start()
     {
@@ -46,6 +49,12 @@ public sealed class HotkeyManager : IDisposable
             CycleThemeHotkeyId,
             modifiers,
             unchecked((uint)KeyInterop.VirtualKeyFromKey(Key.T)));
+
+        HotkeyNativeMethods.RegisterHotKey(
+            _source.Handle,
+            CleanScreenHotkeyId,
+            modifiers,
+            unchecked((uint)KeyInterop.VirtualKeyFromKey(Key.L)));
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -64,6 +73,9 @@ public sealed class HotkeyManager : IDisposable
             case CycleThemeHotkeyId:
                 CycleThemeRequested?.Invoke(this, EventArgs.Empty);
                 break;
+            case CleanScreenHotkeyId:
+                CleanScreenRequested?.Invoke(this, EventArgs.Empty);
+                break;
         }
 
         return IntPtr.Zero;
@@ -78,6 +90,7 @@ public sealed class HotkeyManager : IDisposable
 
         HotkeyNativeMethods.UnregisterHotKey(_source.Handle, TogglePrivacyHotkeyId);
         HotkeyNativeMethods.UnregisterHotKey(_source.Handle, CycleThemeHotkeyId);
+        HotkeyNativeMethods.UnregisterHotKey(_source.Handle, CleanScreenHotkeyId);
         _source.RemoveHook(WndProc);
         _source.Dispose();
         _source = null;
