@@ -15,14 +15,15 @@
   - 会议共享：强化遮罩，并提示单窗口共享的保护边界。
   - 离席保护：遮住所有微信窗口。
   - 快速净屏：一键遮住所有微信窗口，再按一次回到日常保护。
-  - 专注聊天：只保留当前聊天窗口可见。
+  - 专注聊天：只保留当前聊天窗口可见，其他微信窗口显示仿微信骨架遮罩；鼠标悬停到会话列表、标题区、消息区或输入区时，仅对应区域临时透出，移出遮罩后恢复全遮罩。
 - 全局快捷键：
   - `Ctrl + Alt + P`：开启/关闭隐私守护。
   - `Ctrl + Alt + T`：切换主题皮肤。
   - `Ctrl + Alt + L`：快速净屏。
 - 主题皮肤：
-  - 内置办公浅色、夜间深色、低调隐私、可爱便签、动漫霓虹、像素游戏、纸感手账。
-  - 支持外扩边框、贴纸角标、柔光轮廓、背景图片和遮罩纹理。
+  - 内置办公浅色、夜间深色、低调隐私、可爱便签、动漫霓虹、像素游戏、纸感手账、海底海绵。
+  - 支持外扩边框、贴纸角标、柔光轮廓、背景图片、遮罩纹理、气泡/云朵/像素块/海绵等非方形视觉轮廓。
+  - 海底海绵主题使用原创 WPF 几何图形生成黄色多孔海绵、海水气泡、波浪边框和海底装饰，不使用官方角色图像、商标或原图素材。
 - 窗口覆盖：
   - 识别微信主窗口/独立聊天、文件传输、图片预览、搜索、收藏、转发、登录、通知和其他弹窗。
 - 配置保存在 `%APPDATA%\WeChatPrivacySkin\settings.json`，旧版配置会自动迁移。
@@ -56,6 +57,7 @@ D:\WeChatPrivacySkin\bin\Release\net10.0-windows\win-x64\publish\WeChatPrivacySk
 - 不读取聊天内容，不截图微信窗口。
 - 不修改微信安装目录，不注入微信进程，不绕过微信安全机制。
 - 主题皮肤是外层沉浸效果，不替换微信内部聊天气泡、消息列表或控件样式。
+- 专注聊天的悬停透视按窗口比例模拟微信布局，不读取真实控件树、联系人或消息文本。
 - 共享“整个屏幕”时遮罩会被一起捕获；部分会议软件如果只共享某一个微信窗口，可能会绕过外层遮罩。
 
 ## 项目状态
@@ -79,14 +81,15 @@ WeChatPrivacySkin is a Windows companion app for WeChat. It does not modify, inj
   - Meeting share: strengthen masking and warn about single-window sharing limitations.
   - Away cover: cover all WeChat windows when stepping away from the desk.
   - Clean screen: instantly cover all WeChat windows, then press again to return to daily protection.
-  - Focus chat: keep only the active chat window visible.
+  - Focus chat: keep only the active chat window visible. Other WeChat windows show a WeChat-like skeleton mask; hovering the conversation list, title bar, message area, or input area temporarily reveals only that region, and leaving the overlay restores the full mask.
 - Global hotkeys:
   - `Ctrl + Alt + P`: enable or disable privacy protection.
   - `Ctrl + Alt + T`: switch theme skins.
   - `Ctrl + Alt + L`: toggle clean screen mode.
 - Themes and skins:
-  - Built-in themes include Office Light, Night Dark, Stealth Privacy, Kawaii Note, Anime Neon, Pixel Game, and Paper Journal.
-  - Supports extended frames, sticker badges, glow outlines, custom backgrounds, and overlay textures.
+  - Built-in themes include Office Light, Night Dark, Stealth Privacy, Kawaii Note, Anime Neon, Pixel Game, Paper Journal, and Sponge Ocean.
+  - Supports extended frames, sticker badges, glow outlines, custom backgrounds, overlay textures, and non-rectangular visual silhouettes such as bubbles, clouds, pixel blocks, and sponge shapes.
+  - The Sponge Ocean theme is generated from original WPF geometry: yellow porous sponge shapes, underwater bubbles, wave borders, and seabed ornaments. It does not use official character images, trademarks, or source artwork.
 - Window coverage:
   - Detects WeChat main/chat windows, file transfer, image preview, search, favorites, forwarding, login, notification, and other pop-up windows.
 - Settings are stored in `%APPDATA%\WeChatPrivacySkin\settings.json`; older settings are migrated automatically.
@@ -120,6 +123,7 @@ D:\WeChatPrivacySkin\bin\Release\net10.0-windows\win-x64\publish\WeChatPrivacySk
 - The app does not read chat content or take screenshots of WeChat windows.
 - The app does not modify the WeChat installation directory, inject into WeChat, or bypass WeChat security mechanisms.
 - Theme skins are external immersive overlays; they do not replace WeChat's internal chat bubbles, message list, or native controls.
+- Focus-chat hover reveal uses proportional mock layout regions only; it does not inspect real UI controls, contacts, or message text.
 - When sharing the entire screen, overlays should be captured together with the screen. Some meeting tools may bypass the overlay if only a single WeChat window is shared.
 
 ## Project Status

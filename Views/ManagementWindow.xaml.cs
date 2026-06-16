@@ -272,7 +272,7 @@ public partial class ManagementWindow : Window
         PageSubtitleText.Text = tag switch
         {
             "Privacy" => "选择日常、会议、离席、净屏和专注策略",
-            "Themes" => "选择专业、可爱、动漫、像素和手账风格",
+            "Themes" => "选择专业、可爱、动漫、像素、手账和海底海绵风格",
             "Hotkeys" => "查看全局快捷键和托盘操作",
             "Rules" => "查看微信窗口识别和脱敏覆盖范围",
             "About" => "了解安全边界和实现方式",

@@ -17,7 +17,8 @@ public enum ThemePatternKind
     Diagonal,
     Pixels,
     Paper,
-    Neon
+    Neon,
+    Bubbles
 }
 
 public sealed record ThemeAsset(string Kind, string? Path, double Opacity = 1.0);
@@ -42,7 +43,11 @@ public sealed record ThemePack(
     ThemePatternKind Pattern,
     string BadgeText,
     bool MotionDefault,
-    IReadOnlyList<ThemeAsset>? Assets = null);
+    IReadOnlyList<ThemeAsset>? Assets = null,
+    OverlayShapeKind ShapeKind = OverlayShapeKind.RoundedCard,
+    RevealStyleKind RevealStyle = RevealStyleKind.SoftSpotlight,
+    string BackgroundStyle = "flat",
+    IReadOnlyList<string>? Decorations = null);
 
 public static class ThemeCatalog
 {
@@ -189,7 +194,32 @@ public static class ThemeCatalog
             16,
             ThemePatternKind.Paper,
             "NOTE",
-            false)
+            false),
+        new ThemePack(
+            "sponge-ocean",
+            "海底海绵",
+            "可爱",
+            "原创海底海绵风格，黄色多孔轮廓、海水气泡和卡通海底装饰。",
+            C(42, 172, 189),
+            C(255, 221, 86),
+            C(255, 187, 45),
+            C(79, 219, 222),
+            C(72, 54, 28),
+            C(104, 85, 48),
+            C(255, 240, 134),
+            C(32, 146, 178),
+            C(255, 133, 96),
+            26,
+            5,
+            26,
+            ThemePatternKind.Bubbles,
+            "OCEAN",
+            true,
+            null,
+            OverlayShapeKind.Sponge,
+            RevealStyleKind.WaterGlow,
+            "underwater",
+            ["bubbles", "coral", "starfish", "waves"])
     ];
 
     public static IReadOnlyList<ThemePack> All => ThemePacks;
