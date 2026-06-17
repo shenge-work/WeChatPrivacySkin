@@ -150,7 +150,7 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            DrawWeChatSkeleton(theme, placement, revealZone);
+            DrawWeChatSkeleton(theme, decision.Window, placement, revealZone);
         }
 
         DrawCaption(theme, mode, decision, placement);
@@ -197,11 +197,12 @@ public partial class OverlayWindow : Window
         }
     }
 
-    private void DrawWeChatSkeleton(ThemePack theme, OverlayPlacement placement, RevealZone revealZone)
+    private void DrawWeChatSkeleton(ThemePack theme, WeChatWindowInfo window, OverlayPlacement placement, RevealZone revealZone)
     {
         var bounds = placement.TargetBoundsDip;
         var scale = placement.Scale;
-        var layout = WeChatLayoutCalculator.Create(bounds, false, scale);
+        var layout = WeChatUiAutomationLayoutProbe.TryCreate(window.Handle, window.Bounds, bounds, false, scale) ??
+                     WeChatLayoutCalculator.Create(bounds, false, scale);
         var sideRect = layout.ConversationList;
         var titleRect = layout.TitleBar;
         var messageRect = layout.MessageArea;
@@ -219,7 +220,7 @@ public partial class OverlayWindow : Window
         DrawConversationRows(theme, layout.ConversationRows, scale);
         DrawTitleSkeleton(theme, titleRect, scale);
         DrawMessageSkeleton(theme, messageRect, scale);
-        DrawInputSkeleton(theme, inputRect, scale);
+        DrawInputSkeleton(theme, inputRect, layout.InputEditor, scale);
         DrawRevealChrome(theme, placement, revealZone);
     }
 
@@ -321,7 +322,7 @@ public partial class OverlayWindow : Window
         }
     }
 
-    private void DrawInputSkeleton(ThemePack theme, Rect inputRect, double scale)
+    private void DrawInputSkeleton(ThemePack theme, Rect inputRect, Rect inputEditorRect, double scale)
     {
         var iconTop = inputRect.Top + 16 * scale;
         for (var i = 0; i < 5; i++)
@@ -334,7 +335,7 @@ public partial class OverlayWindow : Window
 
         AddRoundedRect(
             SkeletonCanvas,
-            new Rect(inputRect.Left + 24 * scale, inputRect.Top + 44 * scale, inputRect.Width - 48 * scale, Math.Max(18 * scale, inputRect.Height - 60 * scale)),
+            inputEditorRect,
             12 * scale,
             Fill(theme.BackgroundColor, 88),
             null,

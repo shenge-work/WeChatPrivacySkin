@@ -291,7 +291,8 @@ public sealed class OverlayManager : IDisposable
             return RevealZone.None;
         }
 
-        var layout = WeChatLayoutCalculator.Create(window.Bounds, window.IsUtilityLike, 1);
+        var layout = WeChatUiAutomationLayoutProbe.TryCreate(window.Handle, window.Bounds, window.Bounds, window.IsUtilityLike, 1) ??
+                     WeChatLayoutCalculator.Create(window.Bounds, window.IsUtilityLike, 1);
         return ResolveLayoutZone(window.Bounds, settings.Privacy.Mode, layout, cursorPoint.Value);
     }
 
@@ -341,9 +342,14 @@ public sealed class OverlayManager : IDisposable
 
         if (!layout.InputArea.IsEmpty && layout.InputArea.Contains(cursorPoint))
         {
-            var kind = mode == PrivacyMode.SpotlightChat ? RevealZoneKind.InputEditor : RevealZoneKind.InputArea;
-            var hint = mode == PrivacyMode.SpotlightChat ? "编辑区" : "输入区";
-            return CreateRevealZone(windowBounds, kind, layout.InputArea, 16, hint);
+            if (mode == PrivacyMode.SpotlightChat)
+            {
+                return layout.InputEditor.Contains(cursorPoint)
+                    ? CreateRevealZone(windowBounds, RevealZoneKind.InputEditor, layout.InputEditor, 12, "编辑区")
+                    : RevealZone.None;
+            }
+
+            return CreateRevealZone(windowBounds, RevealZoneKind.InputArea, layout.InputArea, 16, "输入区");
         }
 
         return RevealZone.None;

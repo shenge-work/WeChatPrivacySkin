@@ -8,6 +8,7 @@ public sealed record WeChatLayout(
     Rect TitleBar,
     Rect MessageArea,
     Rect InputArea,
+    Rect InputEditor,
     Rect UtilityBody,
     IReadOnlyList<Rect> ConversationRows);
 
@@ -44,6 +45,20 @@ public static class WeChatLayoutCalculator
             intersection.Height / bounds.Height);
     }
 
+    public static Rect FromRatioRect(Rect bounds, Rect ratioRect)
+    {
+        if (bounds.IsEmpty || ratioRect.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return Rect.Empty;
+        }
+
+        return new Rect(
+            bounds.Left + bounds.Width * ratioRect.Left,
+            bounds.Top + bounds.Height * ratioRect.Top,
+            bounds.Width * ratioRect.Width,
+            bounds.Height * ratioRect.Height);
+    }
+
     public static Rect? FindConversationRowAt(WeChatLayout layout, WpfPoint point, double scale)
     {
         var padding = Math.Max(4, 4 * scale);
@@ -72,12 +87,18 @@ public static class WeChatLayoutCalculator
         var titleRect = new Rect(bounds.Left + sideWidth, bounds.Top, contentWidth, titleHeight);
         var messageRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight, contentWidth, messageHeight);
         var inputRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight + messageHeight, contentWidth, inputHeight);
+        var inputEditorRect = new Rect(
+            inputRect.Left + 24 * scale,
+            inputRect.Top + 44 * scale,
+            Math.Max(1, inputRect.Width - 48 * scale),
+            Math.Max(18 * scale, inputRect.Height - 60 * scale));
 
         return new WeChatLayout(
             sideRect,
             titleRect,
             messageRect,
             inputRect,
+            inputEditorRect,
             Rect.Empty,
             CreateConversationRows(sideRect, scale));
     }
@@ -93,6 +114,7 @@ public static class WeChatLayoutCalculator
             Rect.Empty,
             new Rect(bounds.Left, bounds.Top, bounds.Width, titleHeight),
             Rect.Empty,
+            inputRect,
             inputRect,
             bodyRect,
             []);
