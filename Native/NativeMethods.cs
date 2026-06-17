@@ -11,6 +11,8 @@ internal static class NativeMethods
     public const int WS_EX_APPWINDOW = 0x00040000;
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
+    public const int SW_MINIMIZE = 6;
+
     public const uint SWP_NOACTIVATE = 0x0010;
     public const uint SWP_SHOWWINDOW = 0x0040;
     public const uint SWP_NOOWNERZORDER = 0x0200;
@@ -42,6 +44,9 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetCursorPos(out POINT lpPoint);
@@ -72,6 +77,10 @@ internal static class NativeMethods
         int cx,
         int cy,
         uint uFlags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
     [DllImport("user32.dll")]
     public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, [MarshalAs(UnmanagedType.Bool)] bool bRedraw);

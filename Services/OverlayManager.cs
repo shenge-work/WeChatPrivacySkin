@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
+using System.Text;
+using Forms = System.Windows.Forms;
 using WpfPoint = System.Windows.Point;
 
 namespace WeChatPrivacySkin;
@@ -10,8 +12,11 @@ public sealed class OverlayManager : IDisposable
     private readonly WeChatWindowLocator _windowLocator = new();
     private readonly PrivacyPolicyService _privacyPolicy = new();
     private readonly Dictionary<IntPtr, OverlayWindow> _overlays = new();
+    private readonly HashSet<IntPtr> _coveredHandlesLastTick = new();
+    private readonly Dictionary<IntPtr, DateTime> _taskbarMinimizeCooldownUntil = new();
     private readonly DispatcherTimer _timer;
     private FocusFrameWindow? _focusFrame;
+    private static readonly TimeSpan TaskbarMinimizeCooldown = TimeSpan.FromMilliseconds(700);
 
     public event EventHandler<PrivacySnapshot>? SnapshotChanged;
 
@@ -73,6 +78,13 @@ public sealed class OverlayManager : IDisposable
         LastSnapshot = snapshot;
         SnapshotChanged?.Invoke(this, snapshot);
 
+        PruneTaskbarMinimizeCooldowns();
+        if (MinimizeCoveredForegroundWeChat(snapshot))
+        {
+            CloseFocusFrame();
+            return;
+        }
+
         var theme = ThemeCatalog.Get(settings.ThemePackId);
         var cursorPoint = settings.Privacy.Mode == PrivacyMode.FocusChat && TryGetCursorPoint(out var point)
             ? point
@@ -111,6 +123,8 @@ public sealed class OverlayManager : IDisposable
         {
             CloseOverlay(staleHandle);
         }
+
+        UpdateCoveredHandlesLastTick(snapshot.Decisions);
     }
 
     private void UpdateFocusFrame(WeChatWindowInfo? foregroundWeChat, AppSettings settings)
@@ -143,6 +157,115 @@ public sealed class OverlayManager : IDisposable
 
         point = default;
         return false;
+    }
+
+    private bool MinimizeCoveredForegroundWeChat(PrivacySnapshot snapshot)
+    {
+        var activeWindow = snapshot.ActiveWindow;
+        if (activeWindow is null || !_coveredHandlesLastTick.Contains(activeWindow.Handle) || !IsCursorOverTaskbar())
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        if (_taskbarMinimizeCooldownUntil.TryGetValue(activeWindow.Handle, out var cooldownUntil) && cooldownUntil > now)
+        {
+            return true;
+        }
+
+        _taskbarMinimizeCooldownUntil[activeWindow.Handle] = now.Add(TaskbarMinimizeCooldown);
+        NativeMethods.ShowWindowAsync(activeWindow.Handle, NativeMethods.SW_MINIMIZE);
+        return true;
+    }
+
+    private static bool IsCursorOverTaskbar()
+    {
+        if (!TryGetCursorPoint(out var cursorPoint))
+        {
+            return false;
+        }
+
+        return IsCursorOverShellTaskbar(cursorPoint) || IsCursorOverScreenTaskbarArea(cursorPoint);
+    }
+
+    private static bool IsCursorOverShellTaskbar(WpfPoint cursorPoint)
+    {
+        var foundTaskbar = false;
+        NativeMethods.EnumWindows((hWnd, _) =>
+        {
+            var className = GetClassName(hWnd);
+            if (!string.Equals(className, "Shell_TrayWnd", StringComparison.Ordinal) &&
+                !string.Equals(className, "Shell_SecondaryTrayWnd", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (NativeMethods.GetWindowRect(hWnd, out var rect) && rect.ToRect().Contains(cursorPoint))
+            {
+                foundTaskbar = true;
+                return false;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        return foundTaskbar;
+    }
+
+    private static bool IsCursorOverScreenTaskbarArea(WpfPoint cursorPoint)
+    {
+        foreach (var screen in Forms.Screen.AllScreens)
+        {
+            if (Contains(screen.Bounds.Left, screen.Bounds.Top, screen.Bounds.Width, screen.Bounds.Height, cursorPoint))
+            {
+                var work = screen.WorkingArea;
+                if (!Contains(work.Left, work.Top, work.Width, work.Height, cursorPoint))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool Contains(int left, int top, int width, int height, WpfPoint point)
+    {
+        return point.X >= left &&
+               point.X < left + width &&
+               point.Y >= top &&
+               point.Y < top + height;
+    }
+
+    private static string GetClassName(IntPtr hWnd)
+    {
+        var builder = new StringBuilder(256);
+        var length = NativeMethods.GetClassName(hWnd, builder, builder.Capacity);
+        return length > 0 ? builder.ToString() : string.Empty;
+    }
+
+    private void PruneTaskbarMinimizeCooldowns()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var handle in _taskbarMinimizeCooldownUntil
+                     .Where(pair => pair.Value <= now)
+                     .Select(pair => pair.Key)
+                     .ToArray())
+        {
+            _taskbarMinimizeCooldownUntil.Remove(handle);
+        }
+    }
+
+    private void UpdateCoveredHandlesLastTick(IEnumerable<PrivacyDecision> decisions)
+    {
+        _coveredHandlesLastTick.Clear();
+        foreach (var decision in decisions)
+        {
+            if (decision.ShouldCover)
+            {
+                _coveredHandlesLastTick.Add(decision.Window.Handle);
+            }
+        }
     }
 
     private static RevealZone ResolveRevealZone(
@@ -231,6 +354,9 @@ public sealed class OverlayManager : IDisposable
         {
             CloseOverlay(handle);
         }
+
+        _coveredHandlesLastTick.Clear();
+        _taskbarMinimizeCooldownUntil.Clear();
     }
 
     public void Dispose()

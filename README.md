@@ -27,6 +27,7 @@
   - 外形皮肤可独立于颜色主题选择，内置遮脸女孩、海底方块海绵、多边形晶体，并支持导入本地透明 PNG。
 - 窗口覆盖：
   - 识别微信主窗口/独立聊天、文件传输、图片预览、搜索、收藏、转发、登录、通知和其他弹窗。
+  - 已被遮罩的微信窗口如果通过 Windows 任务栏图标被点击，会直接最小化，避免先撤罩再收回导致内容短暂暴露。
 - 配置保存在 `%APPDATA%\WeChatPrivacySkin\settings.json`，旧版配置会自动迁移。
 
 ## 构建
@@ -96,6 +97,7 @@ WeChatPrivacySkin is a Windows companion app for WeChat. It does not modify, inj
   - Shape skins are independent from color themes. Built-in skins include Shy Girl, Ocean Sponge Buddy, Polygon Crystal, and local transparent PNG import.
 - Window coverage:
   - Detects WeChat main/chat windows, file transfer, image preview, search, favorites, forwarding, login, notification, and other pop-up windows.
+  - If a masked WeChat window is clicked from the Windows taskbar, it is minimized directly to avoid briefly exposing content before the native minimize action.
 - Settings are stored in `%APPDATA%\WeChatPrivacySkin\settings.json`; older settings are migrated automatically.
 
 ## Build
