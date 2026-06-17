@@ -11,8 +11,9 @@ public sealed class WeChatLayoutProvider
     private readonly object _gate = new();
     private readonly Dictionary<IntPtr, LayoutCacheEntry> _entries = new();
 
-    public WeChatLayout GetLayout(WeChatWindowInfo window, bool preciseEnabled)
+    public WeChatLayout GetLayout(WeChatWindowInfo window, bool preciseEnabled, out bool isPrecise)
     {
+        isPrecise = false;
         var fallback = WeChatLayoutCalculator.Create(window.Bounds, window.IsUtilityLike, 1);
         if (!preciseEnabled || window.IsUtilityLike || window.Handle == IntPtr.Zero || window.Bounds.IsEmpty)
         {
@@ -31,6 +32,7 @@ public sealed class WeChatLayoutProvider
             entry.LastAccessUtc = now;
             if (entry.Layout is not null && now - entry.LastSuccessUtc <= SuccessTtl)
             {
+                isPrecise = true;
                 return entry.Layout;
             }
 
@@ -39,6 +41,7 @@ public sealed class WeChatLayoutProvider
                 StartProbe(window.Handle, window.Bounds, entry);
             }
 
+            isPrecise = entry.Layout is not null;
             return entry.Layout ?? fallback;
         }
     }

@@ -107,8 +107,17 @@ public sealed class OverlayManager : IDisposable
             }
 
             liveHandles.Add(window.Handle);
-            var layout = _layoutProvider.GetLayout(window, ShouldUsePreciseLayout(settings, window, snapshot.ActiveWindow, cursorPoint));
-            var revealZone = ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow, layout);
+            var preciseLayoutRequested = ShouldUsePreciseLayout(settings, window, snapshot.ActiveWindow, cursorPoint);
+            var layout = _layoutProvider.GetLayout(window, preciseLayoutRequested, out var isPreciseLayout);
+            var revealZone = ResolveRevealZone(
+                window,
+                theme,
+                settings,
+                cursorPoint,
+                snapshot.ActiveWindow,
+                layout,
+                preciseLayoutRequested,
+                isPreciseLayout);
             if (!_overlays.TryGetValue(window.Handle, out var overlay))
             {
                 overlay = new OverlayWindow(window.Handle);
@@ -278,7 +287,9 @@ public sealed class OverlayManager : IDisposable
         AppSettings settings,
         WpfPoint? cursorPoint,
         WeChatWindowInfo? activeWindow,
-        WeChatLayout layout)
+        WeChatLayout layout,
+        bool preciseLayoutRequested,
+        bool isPreciseLayout)
     {
         if (settings.Privacy.Mode is not PrivacyMode.FocusChat and not PrivacyMode.SpotlightChat || cursorPoint is null)
         {
@@ -292,6 +303,11 @@ public sealed class OverlayManager : IDisposable
 
         var overlayBounds = CreateOverlayBounds(window, theme);
         if (!overlayBounds.Contains(cursorPoint.Value) || !window.Bounds.Contains(cursorPoint.Value))
+        {
+            return RevealZone.None;
+        }
+
+        if (settings.Privacy.Mode == PrivacyMode.SpotlightChat && preciseLayoutRequested && !isPreciseLayout)
         {
             return RevealZone.None;
         }
