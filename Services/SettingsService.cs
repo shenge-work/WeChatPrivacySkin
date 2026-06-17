@@ -94,10 +94,21 @@ public sealed class SettingsService
         }
 
         Current.Privacy ??= new PrivacyProfile();
+        if (!Enum.IsDefined(Current.Privacy.Strategy))
+        {
+            Current.Privacy.Strategy = ProtectionStrategy.OverlayMask;
+        }
+
         if (!Enum.IsDefined(Current.Privacy.Mode))
         {
             Current.Privacy.Mode = PrivacyMode.DailyProtection;
         }
+
+        Current.Privacy.AutoMinimize ??= new AutoMinimizeProfile();
+        Current.Privacy.AutoMinimize.DelayMilliseconds = Math.Clamp(
+            Current.Privacy.AutoMinimize.DelayMilliseconds,
+            0,
+            500);
 
         if (string.IsNullOrWhiteSpace(Current.ThemePackId) || !ThemeCatalog.Contains(Current.ThemePackId))
         {

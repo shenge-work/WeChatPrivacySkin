@@ -42,7 +42,7 @@ public sealed class OverlayManager : IDisposable
 
     private void OnSettingsChanged(object? sender, AppSettings settings)
     {
-        if (!settings.Privacy.Enabled)
+        if (!settings.Privacy.Enabled || settings.Privacy.Strategy != ProtectionStrategy.OverlayMask)
         {
             CloseAll();
             return;
@@ -66,7 +66,7 @@ public sealed class OverlayManager : IDisposable
     private void RefreshCore()
     {
         var settings = _settingsService.Current;
-        if (!settings.Privacy.Enabled)
+        if (!settings.Privacy.Enabled || settings.Privacy.Strategy != ProtectionStrategy.OverlayMask)
         {
             CloseAll();
             return;

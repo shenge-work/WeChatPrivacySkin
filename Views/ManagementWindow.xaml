@@ -138,13 +138,28 @@
                             </StackPanel>
                         </Border>
 
+                        <WrapPanel x:Name="ProtectionStrategyPanel" Margin="0,18,0,0"/>
+
                         <WrapPanel x:Name="PrivacyModePanel" Margin="0,18,0,0"/>
 
-                        <Border Background="White" BorderBrush="#DCE7E3" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,18,0,0">
+                        <Border x:Name="OverlayOptionsPanel" Background="White" BorderBrush="#DCE7E3" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,18,0,0">
                             <StackPanel>
                                 <CheckBox x:Name="TopmostCheckBox" Content="置顶遮罩，优先保护会议共享和录屏" Checked="Topmost_OnChanged" Unchecked="Topmost_OnChanged"/>
                                 <CheckBox x:Name="CoverPopupsCheckBox" Content="覆盖微信通知、预览、转发、搜索等弹窗" Margin="0,10,0,0" Checked="PrivacyOption_OnChanged" Unchecked="PrivacyOption_OnChanged"/>
                                 <CheckBox x:Name="MeetingWarningCheckBox" Content="会议共享模式显示单窗口共享风险提示" Margin="0,10,0,0" Checked="PrivacyOption_OnChanged" Unchecked="PrivacyOption_OnChanged"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="AutoMinimizeOptionsPanel" Background="White" BorderBrush="#DCE7E3" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,18,0,0">
+                            <StackPanel>
+                                <TextBlock Text="离开即收起会在点击非微信窗口区域时直接最小化微信，不创建遮罩层。"
+                                           Foreground="#60736E"
+                                           TextWrapping="Wrap"/>
+                                <CheckBox x:Name="AutoMinimizeAllCheckBox"
+                                          Content="收起所有可见微信窗口"
+                                          Margin="0,12,0,0"
+                                          Checked="AutoMinimizeOption_OnChanged"
+                                          Unchecked="AutoMinimizeOption_OnChanged"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

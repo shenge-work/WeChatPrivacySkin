@@ -58,6 +58,11 @@ public static class TrayIconFactory
             return Color.FromArgb(142, 148, 150);
         }
 
+        if (settings.Privacy.Strategy == ProtectionStrategy.AutoMinimizeOnExternalClick)
+        {
+            return Color.FromArgb(67, 149, 255);
+        }
+
         return settings.Privacy.Mode == PrivacyMode.MeetingShare
             ? Color.FromArgb(255, 179, 64)
             : Color.FromArgb(39, 201, 120);

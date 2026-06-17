@@ -6,6 +6,7 @@ public partial class App : System.Windows.Application
 {
     private SettingsService? _settingsService;
     private OverlayManager? _overlayManager;
+    private AutoMinimizeManager? _autoMinimizeManager;
     private TrayController? _trayController;
     private HotkeyManager? _hotkeyManager;
     private ManagementWindow? _managementWindow;
@@ -19,6 +20,9 @@ public partial class App : System.Windows.Application
 
         _overlayManager = new OverlayManager(_settingsService);
         _overlayManager.Start();
+
+        _autoMinimizeManager = new AutoMinimizeManager(_settingsService);
+        _autoMinimizeManager.Start();
 
         _trayController = new TrayController(
             _settingsService,
@@ -69,6 +73,7 @@ public partial class App : System.Windows.Application
         _settingsService?.Update(settings =>
         {
             settings.Privacy.Enabled = true;
+            settings.Privacy.Strategy = ProtectionStrategy.OverlayMask;
             settings.Privacy.Mode = settings.Privacy.Mode == PrivacyMode.CleanScreen
                 ? PrivacyMode.DailyProtection
                 : PrivacyMode.CleanScreen;
@@ -79,6 +84,7 @@ public partial class App : System.Windows.Application
     {
         _hotkeyManager?.Dispose();
         _trayController?.Dispose();
+        _autoMinimizeManager?.Dispose();
         _overlayManager?.Dispose();
         _settingsService?.Save();
 

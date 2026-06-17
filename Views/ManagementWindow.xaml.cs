@@ -29,6 +29,7 @@ public partial class ManagementWindow : Window
 
         _loading = true;
         InitializeComponent();
+        BuildProtectionStrategyButtons();
         BuildPrivacyModeButtons();
         BuildThemeCards();
         BuildSkinCards();
@@ -39,6 +40,44 @@ public partial class ManagementWindow : Window
         _overlayManager.SnapshotChanged += OverlayManager_OnSnapshotChanged;
         ApplySettings(_settingsService.Current);
         ApplySnapshot(_overlayManager.LastSnapshot);
+    }
+
+    private void BuildProtectionStrategyButtons()
+    {
+        ProtectionStrategyPanel.Children.Clear();
+        foreach (var strategy in ProtectionStrategyCatalog.OrderedStrategies)
+        {
+            var button = new WpfButton
+            {
+                Tag = strategy,
+                Width = 300,
+                Height = 88,
+                Margin = new Thickness(0, 0, 12, 12),
+                HorizontalContentAlignment = WpfHorizontalAlignment.Left,
+                VerticalContentAlignment = VerticalAlignment.Top,
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = ProtectionStrategyCatalog.DisplayName(strategy),
+                            FontWeight = FontWeights.SemiBold,
+                            FontSize = 15
+                        },
+                        new TextBlock
+                        {
+                            Text = ProtectionStrategyCatalog.Description(strategy),
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 6, 0, 0),
+                            Foreground = new SolidColorBrush(MediaColor.FromRgb(91, 111, 105))
+                        }
+                    }
+                }
+            };
+            button.Click += (_, _) => SetProtectionStrategy(strategy);
+            ProtectionStrategyPanel.Children.Add(button);
+        }
     }
 
     private void BuildPrivacyModeButtons()
@@ -203,6 +242,7 @@ public partial class ManagementWindow : Window
             TopmostCheckBox.IsChecked = settings.OverlayAlwaysOnTop;
             CoverPopupsCheckBox.IsChecked = settings.Privacy.CoverPopups;
             MeetingWarningCheckBox.IsChecked = settings.Privacy.ShowMeetingWarning;
+            AutoMinimizeAllCheckBox.IsChecked = settings.Privacy.AutoMinimize.MinimizeAllVisibleWindows;
             MotionCheckBox.IsChecked = settings.DecorativeMotionEnabled;
             OpacitySlider.Value = settings.OverlayOpacity;
             OpacityValueText.Text = $"{settings.OverlayOpacity:P0}";
@@ -212,8 +252,12 @@ public partial class ManagementWindow : Window
             SkinPathText.Text = string.IsNullOrWhiteSpace(settings.CustomSkinImagePath)
                 ? "未选择透明 PNG 皮肤"
                 : settings.CustomSkinImagePath;
-            OverviewModeText.Text = PrivacyModeCatalog.DisplayName(settings.Privacy.Mode);
-            OverviewThemeText.Text = $"{ThemeCatalog.Get(settings.ThemePackId).DisplayName} · {OverlaySkinCatalog.Get(settings.OverlaySkinId).DisplayName}";
+            OverviewModeText.Text = settings.Privacy.Strategy == ProtectionStrategy.OverlayMask
+                ? PrivacyModeCatalog.DisplayName(settings.Privacy.Mode)
+                : ProtectionStrategyCatalog.DisplayName(settings.Privacy.Strategy);
+            OverviewThemeText.Text = settings.Privacy.Strategy == ProtectionStrategy.OverlayMask
+                ? $"{ThemeCatalog.Get(settings.ThemePackId).DisplayName} · {OverlaySkinCatalog.Get(settings.OverlaySkinId).DisplayName}"
+                : "离开即收起 · 无遮罩层";
 
             StatusPill.Background = settings.Privacy.Enabled
                 ? new SolidColorBrush(MediaColor.FromRgb(221, 244, 235))
@@ -221,13 +265,22 @@ public partial class ManagementWindow : Window
             StatusPillText.Foreground = settings.Privacy.Enabled
                 ? new SolidColorBrush(MediaColor.FromRgb(35, 122, 86))
                 : new SolidColorBrush(MediaColor.FromRgb(88, 88, 88));
-            StatusPillText.Text = settings.Privacy.Enabled ? "保护中" : "已关闭";
+            StatusPillText.Text = settings.Privacy.Enabled
+                ? $"{ProtectionStrategyCatalog.DisplayName(settings.Privacy.Strategy)}中"
+                : "已关闭";
 
+            RefreshProtectionStrategyButtons(settings);
             RefreshPrivacyModeButtons(settings);
             RefreshThemeCards(settings);
             BuildSkinCards();
             RefreshSkinCards(settings);
             BuildRulesList(settings);
+
+            if (settings.Privacy.Strategy == ProtectionStrategy.AutoMinimizeOnExternalClick)
+            {
+                WindowCountText.Text = "自动收起";
+                ActiveWindowText.Text = "离开即收起已启用：点击非微信窗口区域时会直接最小化微信，任务栏点击保持原生行为。";
+            }
         }
         finally
         {
@@ -237,10 +290,37 @@ public partial class ManagementWindow : Window
 
     private void ApplySnapshot(PrivacySnapshot? snapshot)
     {
+        if (_settingsService.Current.Privacy.Strategy == ProtectionStrategy.AutoMinimizeOnExternalClick)
+        {
+            WindowCountText.Text = "自动收起";
+            ActiveWindowText.Text = "离开即收起已启用：点击非微信窗口区域时会直接最小化微信，任务栏点击保持原生行为。";
+            return;
+        }
+
         WindowCountText.Text = snapshot?.Windows.Count.ToString() ?? "0";
         ActiveWindowText.Text = snapshot?.ActiveWindow is null
             ? "当前没有前台微信窗口；检测到的微信窗口会按当前隐私模式保护。"
             : $"当前可见窗口：{snapshot.ActiveWindow.Title} · {snapshot.ActiveWindow.Kind}";
+    }
+
+    private void RefreshProtectionStrategyButtons(AppSettings settings)
+    {
+        foreach (WpfButton button in ProtectionStrategyPanel.Children.OfType<WpfButton>())
+        {
+            var selected = button.Tag is ProtectionStrategy strategy && strategy == settings.Privacy.Strategy;
+            button.Background = selected
+                ? new SolidColorBrush(MediaColor.FromRgb(221, 244, 235))
+                : MediaBrushes.White;
+            button.BorderBrush = selected
+                ? new SolidColorBrush(MediaColor.FromRgb(42, 125, 97))
+                : new SolidColorBrush(MediaColor.FromRgb(220, 231, 227));
+            button.BorderThickness = selected ? new Thickness(2) : new Thickness(1);
+        }
+
+        var overlaySelected = settings.Privacy.Strategy == ProtectionStrategy.OverlayMask;
+        PrivacyModePanel.Visibility = overlaySelected ? Visibility.Visible : Visibility.Collapsed;
+        OverlayOptionsPanel.Visibility = overlaySelected ? Visibility.Visible : Visibility.Collapsed;
+        AutoMinimizeOptionsPanel.Visibility = overlaySelected ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void RefreshPrivacyModeButtons(AppSettings settings)
@@ -332,7 +412,17 @@ public partial class ManagementWindow : Window
         _settingsService.Update(settings =>
         {
             settings.Privacy.Enabled = true;
+            settings.Privacy.Strategy = ProtectionStrategy.OverlayMask;
             settings.Privacy.Mode = mode;
+        });
+    }
+
+    private void SetProtectionStrategy(ProtectionStrategy strategy)
+    {
+        _settingsService.Update(settings =>
+        {
+            settings.Privacy.Enabled = true;
+            settings.Privacy.Strategy = strategy;
         });
     }
 
@@ -386,6 +476,16 @@ public partial class ManagementWindow : Window
             settings.Privacy.CoverPopups = CoverPopupsCheckBox.IsChecked == true;
             settings.Privacy.CoverUtilityWindows = CoverPopupsCheckBox.IsChecked == true;
             settings.Privacy.ShowMeetingWarning = MeetingWarningCheckBox.IsChecked == true;
+        });
+    }
+
+    private void AutoMinimizeOption_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settingsService.Update(settings =>
+        {
+            settings.Privacy.Strategy = ProtectionStrategy.AutoMinimizeOnExternalClick;
+            settings.Privacy.AutoMinimize.MinimizeAllVisibleWindows = AutoMinimizeAllCheckBox.IsChecked == true;
         });
     }
 

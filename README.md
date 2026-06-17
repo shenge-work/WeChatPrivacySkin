@@ -11,6 +11,7 @@
   - 双击托盘图标开启/关闭隐私守护。
   - 按住 `Shift` 右键可打开退出兜底菜单。
 - 隐私场景：
+  - 保护方式二选一：遮罩守护使用外层遮罩和主题皮肤；离开即收起会在点击非微信窗口区域时直接最小化微信，不创建遮罩层。
   - 日常保护：当前微信窗口可见，其他微信窗口脱敏。
   - 会议共享：强化遮罩，并提示单窗口共享的保护边界。
   - 离席保护：遮住所有微信窗口。
@@ -81,6 +82,7 @@ WeChatPrivacySkin is a Windows companion app for WeChat. It does not modify, inj
   - Double-click the tray icon to enable or disable privacy protection.
   - Hold `Shift` and right-click to open the fallback exit menu.
 - Privacy scenarios:
+  - Protection strategies are mutually exclusive: Overlay Guard uses external masks, themes, and skins; Auto Minimize minimizes WeChat when clicking outside WeChat and does not create overlay windows.
   - Daily protection: keep the active WeChat window visible and mask other WeChat windows.
   - Meeting share: strengthen masking and warn about single-window sharing limitations.
   - Away cover: cover all WeChat windows when stepping away from the desk.

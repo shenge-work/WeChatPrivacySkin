@@ -71,7 +71,9 @@ public sealed class TrayController : IDisposable
     {
         var settings = _settingsService.Current;
         var enabled = settings.Privacy.Enabled ? "开启" : "关闭";
-        var mode = PrivacyModeCatalog.DisplayName(settings.Privacy.Mode);
+        var mode = settings.Privacy.Strategy == ProtectionStrategy.OverlayMask
+            ? PrivacyModeCatalog.DisplayName(settings.Privacy.Mode)
+            : ProtectionStrategyCatalog.DisplayName(settings.Privacy.Strategy);
         var theme = ThemeCatalog.Get(settings.ThemePackId).DisplayName;
         return $"微信隐私皮肤 · {enabled} · {mode} · {theme}";
     }

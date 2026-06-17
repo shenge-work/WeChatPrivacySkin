@@ -3,6 +3,13 @@ using System.Text.Json.Serialization;
 namespace WeChatPrivacySkin;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ProtectionStrategy
+{
+    OverlayMask,
+    AutoMinimizeOnExternalClick
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PrivacyMode
 {
     DailyProtection,
@@ -17,7 +24,12 @@ public sealed class PrivacyProfile
     public bool Enabled { get; set; } = true;
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ProtectionStrategy Strategy { get; set; } = ProtectionStrategy.OverlayMask;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public PrivacyMode Mode { get; set; } = PrivacyMode.DailyProtection;
+
+    public AutoMinimizeProfile AutoMinimize { get; set; } = new();
 
     public bool CoverPopups { get; set; } = true;
 
@@ -26,6 +38,34 @@ public sealed class PrivacyProfile
     public bool ShowMeetingWarning { get; set; } = true;
 
     public bool HideWindowTitleHints { get; set; } = true;
+}
+
+public sealed class AutoMinimizeProfile
+{
+    public bool MinimizeAllVisibleWindows { get; set; } = true;
+
+    public int DelayMilliseconds { get; set; }
+}
+
+public static class ProtectionStrategyCatalog
+{
+    public static readonly ProtectionStrategy[] OrderedStrategies =
+    [
+        ProtectionStrategy.OverlayMask,
+        ProtectionStrategy.AutoMinimizeOnExternalClick
+    ];
+
+    public static string DisplayName(ProtectionStrategy strategy) => strategy switch
+    {
+        ProtectionStrategy.AutoMinimizeOnExternalClick => "离开即收起",
+        _ => "遮罩守护"
+    };
+
+    public static string Description(ProtectionStrategy strategy) => strategy switch
+    {
+        ProtectionStrategy.AutoMinimizeOnExternalClick => "点击非微信区域时直接最小化微信，不创建遮罩层。",
+        _ => "保留微信窗口位置，用遮罩、主题皮肤和专注聊天保护内容。"
+    };
 }
 
 public static class PrivacyModeCatalog
