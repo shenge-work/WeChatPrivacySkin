@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -30,6 +31,7 @@ public partial class ManagementWindow : Window
         InitializeComponent();
         BuildPrivacyModeButtons();
         BuildThemeCards();
+        BuildSkinCards();
         NavigationList.SelectedIndex = 0;
         _loading = false;
 
@@ -136,6 +138,62 @@ public partial class ManagementWindow : Window
         }
     }
 
+    private void BuildSkinCards()
+    {
+        SkinPanel.Children.Clear();
+        foreach (var skin in OverlaySkinCatalog.All)
+        {
+            var previewCanvas = new Canvas
+            {
+                Width = 174,
+                Height = 76
+            };
+            OverlaySkinRenderer.DrawPreview(previewCanvas, skin, ThemeCatalog.Get(_settingsService.Current.ThemePackId), _settingsService.Current.CustomSkinImagePath);
+
+            var preview = new Border
+            {
+                Height = 76,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(MediaColor.FromRgb(247, 251, 249)),
+                BorderBrush = new SolidColorBrush(skin.PreviewAccent),
+                BorderThickness = new Thickness(1.4),
+                Child = previewCanvas
+            };
+
+            var button = new WpfButton
+            {
+                Tag = skin.Id,
+                Width = 206,
+                MinHeight = 176,
+                Margin = new Thickness(0, 0, 12, 12),
+                HorizontalContentAlignment = WpfHorizontalAlignment.Stretch,
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        preview,
+                        new TextBlock
+                        {
+                            Text = skin.DisplayName,
+                            FontWeight = FontWeights.SemiBold,
+                            FontSize = 15,
+                            Margin = new Thickness(0, 12, 0, 0)
+                        },
+                        new TextBlock
+                        {
+                            Text = $"{skin.Category} · {skin.Description}",
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = new SolidColorBrush(MediaColor.FromRgb(91, 111, 105)),
+                            Margin = new Thickness(0, 6, 0, 0)
+                        }
+                    }
+                }
+            };
+            button.Click += (_, _) => ApplySkin(skin);
+            SkinPanel.Children.Add(button);
+        }
+    }
+
     private void ApplySettings(AppSettings settings)
     {
         _loading = true;
@@ -151,8 +209,11 @@ public partial class ManagementWindow : Window
             BackgroundPathText.Text = string.IsNullOrWhiteSpace(settings.BackgroundImagePath)
                 ? "未选择自定义背景"
                 : settings.BackgroundImagePath;
+            SkinPathText.Text = string.IsNullOrWhiteSpace(settings.CustomSkinImagePath)
+                ? "未选择透明 PNG 皮肤"
+                : settings.CustomSkinImagePath;
             OverviewModeText.Text = PrivacyModeCatalog.DisplayName(settings.Privacy.Mode);
-            OverviewThemeText.Text = ThemeCatalog.Get(settings.ThemePackId).DisplayName;
+            OverviewThemeText.Text = $"{ThemeCatalog.Get(settings.ThemePackId).DisplayName} · {OverlaySkinCatalog.Get(settings.OverlaySkinId).DisplayName}";
 
             StatusPill.Background = settings.Privacy.Enabled
                 ? new SolidColorBrush(MediaColor.FromRgb(221, 244, 235))
@@ -164,6 +225,8 @@ public partial class ManagementWindow : Window
 
             RefreshPrivacyModeButtons(settings);
             RefreshThemeCards(settings);
+            BuildSkinCards();
+            RefreshSkinCards(settings);
             BuildRulesList(settings);
         }
         finally
@@ -204,6 +267,29 @@ public partial class ManagementWindow : Window
                 : new SolidColorBrush(MediaColor.FromRgb(220, 231, 227));
             button.BorderThickness = selected ? new Thickness(2) : new Thickness(1);
         }
+    }
+
+    private void RefreshSkinCards(AppSettings settings)
+    {
+        foreach (WpfButton button in SkinPanel.Children.OfType<WpfButton>())
+        {
+            var selected = string.Equals(button.Tag as string, settings.OverlaySkinId, StringComparison.OrdinalIgnoreCase);
+            button.BorderBrush = selected
+                ? new SolidColorBrush(MediaColor.FromRgb(42, 125, 97))
+                : new SolidColorBrush(MediaColor.FromRgb(220, 231, 227));
+            button.BorderThickness = selected ? new Thickness(2) : new Thickness(1);
+        }
+    }
+
+    private void ApplySkin(OverlaySkin skin)
+    {
+        if (skin.RenderKind == OverlaySkinRenderKind.CustomPng && !HasValidPng(_settingsService.Current.CustomSkinImagePath))
+        {
+            ChooseSkinPng();
+            return;
+        }
+
+        _settingsService.Update(settings => settings.OverlaySkinId = skin.Id);
     }
 
     private void BuildRulesList(AppSettings settings)
@@ -272,7 +358,7 @@ public partial class ManagementWindow : Window
         PageSubtitleText.Text = tag switch
         {
             "Privacy" => "选择日常、会议、离席、净屏和专注策略",
-            "Themes" => "选择专业、可爱、动漫、像素、手账和海底海绵风格",
+            "Themes" => "独立选择颜色主题、外形皮肤和透明 PNG",
             "Hotkeys" => "查看全局快捷键和托盘操作",
             "Rules" => "查看微信窗口识别和脱敏覆盖范围",
             "About" => "了解安全边界和实现方式",
@@ -336,6 +422,54 @@ public partial class ManagementWindow : Window
     private void ClearBackground_OnClick(object sender, RoutedEventArgs e)
     {
         _settingsService.Update(settings => settings.BackgroundImagePath = null);
+    }
+
+    private void ChooseSkinPng_OnClick(object sender, RoutedEventArgs e)
+    {
+        ChooseSkinPng();
+    }
+
+    private void ChooseSkinPng()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择透明 PNG 皮肤",
+            Filter = "PNG 图片|*.png",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            _settingsService.Update(settings =>
+            {
+                settings.CustomSkinImagePath = dialog.FileName;
+                settings.OverlaySkinId = OverlaySkinCatalog.CustomPngSkinId;
+            });
+            BuildSkinCards();
+            RefreshSkinCards(_settingsService.Current);
+        }
+    }
+
+    private void ClearSkinPng_OnClick(object sender, RoutedEventArgs e)
+    {
+        _settingsService.Update(settings =>
+        {
+            settings.CustomSkinImagePath = null;
+            if (string.Equals(settings.OverlaySkinId, OverlaySkinCatalog.CustomPngSkinId, StringComparison.OrdinalIgnoreCase))
+            {
+                settings.OverlaySkinId = OverlaySkinCatalog.DefaultSkinId;
+            }
+        });
+        BuildSkinCards();
+        RefreshSkinCards(_settingsService.Current);
+    }
+
+    private static bool HasValidPng(string? path)
+    {
+        return !string.IsNullOrWhiteSpace(path) &&
+               File.Exists(path) &&
+               string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase);
     }
 
     private void DailyMode_OnClick(object sender, RoutedEventArgs e) => SetPrivacyMode(PrivacyMode.DailyProtection);

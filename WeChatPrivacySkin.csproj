@@ -16,5 +16,6 @@
     <Content Include="Assets\AppIcon\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\AppIcon\app-icon-design.md" CopyToOutputDirectory="Never" />
     <Content Include="Assets\Themes\README.md" CopyToOutputDirectory="Never" />
+    <Content Include="Assets\Skins\README.md" CopyToOutputDirectory="Never" />
   </ItemGroup>
 </Project>

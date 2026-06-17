@@ -104,6 +104,11 @@ public sealed class SettingsService
             Current.ThemePackId = ThemeCatalog.DefaultThemeId;
         }
 
+        if (string.IsNullOrWhiteSpace(Current.OverlaySkinId) || !OverlaySkinCatalog.Contains(Current.OverlaySkinId))
+        {
+            Current.OverlaySkinId = OverlaySkinCatalog.DefaultSkinId;
+        }
+
         Current.OverlayOpacity = Math.Clamp(Current.OverlayOpacity, 0.35, 0.95);
         if (string.IsNullOrWhiteSpace(Current.WeChatExecutablePath))
         {
@@ -116,8 +121,26 @@ public sealed class SettingsService
             Current.BackgroundImagePath = null;
         }
 
+        if (!IsValidCustomSkinPath(Current.CustomSkinImagePath))
+        {
+            Current.CustomSkinImagePath = null;
+        }
+
+        if (string.Equals(Current.OverlaySkinId, OverlaySkinCatalog.CustomPngSkinId, StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(Current.CustomSkinImagePath))
+        {
+            Current.OverlaySkinId = OverlaySkinCatalog.DefaultSkinId;
+        }
+
         Current.WindowRules ??= [];
         MergeDefaultWindowRules();
+    }
+
+    private static bool IsValidCustomSkinPath(string? path)
+    {
+        return !string.IsNullOrWhiteSpace(path) &&
+               File.Exists(path) &&
+               string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase);
     }
 
     private void MergeDefaultWindowRules()

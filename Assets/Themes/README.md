@@ -13,6 +13,12 @@ Future imported or custom theme files should live under:
 Assets/Themes/<theme-id>/
 ```
 
+Custom transparent PNG overlay skins should live under:
+
+```text
+Assets/Skins/<skin-id>/
+```
+
 Suggested files:
 
 - `theme.json` for colors, radii, frame, pattern, and behavior.

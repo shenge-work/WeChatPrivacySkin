@@ -18,6 +18,7 @@
         <Canvas x:Name="ShapeCanvas"/>
         <Canvas x:Name="SkeletonCanvas"/>
         <Canvas x:Name="DecorationCanvas"/>
+        <Canvas x:Name="SkinCanvas"/>
 
         <Border x:Name="CornerSticker"
                 Width="118"

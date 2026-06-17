@@ -53,9 +53,10 @@ public partial class OverlayWindow : Window
         RevealZone? revealZone = null)
     {
         var theme = ThemeCatalog.Get(settings.ThemePackId);
+        var skin = OverlaySkinCatalog.Get(settings.OverlaySkinId);
         var zone = revealZone ?? RevealZone.None;
         var placement = PositionOver(decision.Window, settings, theme);
-        ApplyTheme(settings, theme, decision, placement, zone);
+        ApplyTheme(settings, theme, skin, decision, placement, zone);
         ApplyWindowRegion(placement.OverlayBoundsPx, decision.Window.Bounds, activeWeChatBounds, zone);
     }
 
@@ -119,6 +120,7 @@ public partial class OverlayWindow : Window
     private void ApplyTheme(
         AppSettings settings,
         ThemePack theme,
+        OverlaySkin skin,
         PrivacyDecision decision,
         OverlayPlacement placement,
         RevealZone revealZone)
@@ -135,8 +137,13 @@ public partial class OverlayWindow : Window
         ShapeCanvas.Children.Clear();
         SkeletonCanvas.Children.Clear();
         DecorationCanvas.Children.Clear();
+        SkinCanvas.Children.Clear();
 
-        DrawShapeChrome(theme, placement, panelOpacity);
+        if (skin.RenderKind == OverlaySkinRenderKind.ThemeShape)
+        {
+            DrawShapeChrome(theme, placement, panelOpacity);
+        }
+
         if (decision.Window.IsUtilityLike)
         {
             DrawUtilitySkeleton(theme, placement, revealZone);
@@ -148,6 +155,7 @@ public partial class OverlayWindow : Window
 
         DrawCaption(theme, mode, decision, placement);
         DrawDecorations(theme, placement, settings.DecorativeMotionEnabled && theme.MotionDefault);
+        OverlaySkinRenderer.Draw(SkinCanvas, skin, theme, settings.CustomSkinImagePath, placement.TargetBoundsDip, placement.Scale, Width, Height);
         ApplyCornerSticker(theme);
         ApplyRevealHint(theme, placement, revealZone);
     }

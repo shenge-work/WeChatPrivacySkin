@@ -174,6 +174,22 @@
                             </StackPanel>
                         </Border>
                         <WrapPanel x:Name="ThemePanel" Margin="0,18,0,0"/>
+
+                        <Border Background="White" BorderBrush="#DCE7E3" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,18,0,0">
+                            <StackPanel>
+                                <TextBlock Text="外形皮肤" FontWeight="SemiBold" Foreground="#172322"/>
+                                <TextBlock Text="皮肤只作为遮罩上方的视觉层，透明区域不会让微信内容漏出。"
+                                           Margin="0,6,0,0"
+                                           Foreground="#60736E"
+                                           TextWrapping="Wrap"/>
+                                <DockPanel Margin="0,14,0,0">
+                                    <Button Content="选择透明 PNG" DockPanel.Dock="Right" Click="ChooseSkinPng_OnClick"/>
+                                    <Button Content="清除 PNG" DockPanel.Dock="Right" Margin="0,0,10,0" Click="ClearSkinPng_OnClick"/>
+                                    <TextBlock x:Name="SkinPathText" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="#60736E"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                        <WrapPanel x:Name="SkinPanel" Margin="0,18,0,0"/>
                     </StackPanel>
 
                     <StackPanel x:Name="HotkeysSection" Visibility="Collapsed">

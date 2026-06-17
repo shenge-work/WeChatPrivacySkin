@@ -8,6 +8,8 @@ public sealed class AppSettings
 
     public string ThemePackId { get; set; } = ThemeCatalog.DefaultThemeId;
 
+    public string OverlaySkinId { get; set; } = OverlaySkinCatalog.DefaultSkinId;
+
     public double OverlayOpacity { get; set; } = 0.78;
 
     public bool OverlayAlwaysOnTop { get; set; } = true;
@@ -15,6 +17,8 @@ public sealed class AppSettings
     public bool DecorativeMotionEnabled { get; set; } = true;
 
     public string? BackgroundImagePath { get; set; }
+
+    public string? CustomSkinImagePath { get; set; }
 
     public string WeChatExecutablePath { get; set; } = @"C:\Program Files\Tencent\Weixin\Weixin.exe";
 
