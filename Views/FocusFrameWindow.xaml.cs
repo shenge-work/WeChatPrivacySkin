@@ -73,42 +73,49 @@ public partial class FocusFrameWindow : Window
 
     private void PositionOver(WeChatWindowInfo target, AppSettings settings, ThemePack theme)
     {
-        var dpi = NativeMethods.GetDpiForWindow(target.Handle);
-        if (dpi == 0)
-        {
-            dpi = 96;
-        }
-
-        var scale = 96.0 / dpi;
         var outset = theme.Outset;
         var left = target.Bounds.Left - outset;
         var top = target.Bounds.Top - outset;
         var width = target.Bounds.Width + outset * 2;
         var height = target.Bounds.Height + outset * 2;
 
+        if (_windowHandle != IntPtr.Zero)
+        {
+            var zOrder = settings.OverlayAlwaysOnTop
+                ? NativeMethods.HWND_TOPMOST
+                : NativeMethods.HWND_NOTOPMOST;
+
+            NativeMethods.SetWindowPos(
+                _windowHandle,
+                zOrder,
+                (int)Math.Round(left),
+                (int)Math.Round(top),
+                (int)Math.Round(width),
+                (int)Math.Round(height),
+                NativeMethods.SWP_NOACTIVATE |
+                NativeMethods.SWP_SHOWWINDOW |
+                NativeMethods.SWP_NOOWNERZORDER);
+        }
+
+        var scale = GetDipScale(_windowHandle, target.Handle);
         Width = Math.Max(1, width * scale);
         Height = Math.Max(1, height * scale);
-        Left = left * scale;
-        Top = top * scale;
 
         if (_windowHandle == IntPtr.Zero)
         {
-            return;
+            Left = left * scale;
+            Top = top * scale;
+        }
+    }
+
+    private static double GetDipScale(IntPtr preferredDpiHandle, IntPtr fallbackDpiHandle)
+    {
+        var dpi = preferredDpiHandle == IntPtr.Zero ? 0 : NativeMethods.GetDpiForWindow(preferredDpiHandle);
+        if (dpi == 0 && fallbackDpiHandle != IntPtr.Zero)
+        {
+            dpi = NativeMethods.GetDpiForWindow(fallbackDpiHandle);
         }
 
-        var zOrder = settings.OverlayAlwaysOnTop
-            ? NativeMethods.HWND_TOPMOST
-            : NativeMethods.HWND_NOTOPMOST;
-
-        NativeMethods.SetWindowPos(
-            _windowHandle,
-            zOrder,
-            (int)Math.Round(left),
-            (int)Math.Round(top),
-            (int)Math.Round(width),
-            (int)Math.Round(height),
-            NativeMethods.SWP_NOACTIVATE |
-            NativeMethods.SWP_SHOWWINDOW |
-            NativeMethods.SWP_NOOWNERZORDER);
+        return 96.0 / Math.Max(96, dpi);
     }
 }

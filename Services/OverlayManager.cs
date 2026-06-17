@@ -98,8 +98,8 @@ public sealed class OverlayManager : IDisposable
             {
                 overlay = new OverlayWindow(window.Handle);
                 _overlays[window.Handle] = overlay;
-                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint));
                 overlay.Show();
+                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint));
             }
             else
             {
@@ -125,8 +125,8 @@ public sealed class OverlayManager : IDisposable
         {
             CloseFocusFrame();
             _focusFrame = new FocusFrameWindow(foregroundWeChat.Handle);
-            _focusFrame.UpdateFrom(foregroundWeChat, settings);
             _focusFrame.Show();
+            _focusFrame.UpdateFrom(foregroundWeChat, settings);
             return;
         }
 

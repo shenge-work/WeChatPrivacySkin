@@ -61,24 +61,12 @@ public partial class OverlayWindow : Window
 
     private OverlayPlacement PositionOver(WeChatWindowInfo target, AppSettings settings, ThemePack theme)
     {
-        var dpi = NativeMethods.GetDpiForWindow(target.Handle);
-        if (dpi == 0)
-        {
-            dpi = 96;
-        }
-
-        var scale = 96.0 / dpi;
         var outset = theme.Outset;
         var overlayBounds = new Rect(
             target.Bounds.Left - outset,
             target.Bounds.Top - outset,
             target.Bounds.Width + outset * 2,
             target.Bounds.Height + outset * 2);
-
-        Width = Math.Max(1, overlayBounds.Width * scale);
-        Height = Math.Max(1, overlayBounds.Height * scale);
-        Left = overlayBounds.Left * scale;
-        Top = overlayBounds.Top * scale;
 
         if (_windowHandle != IntPtr.Zero)
         {
@@ -98,6 +86,16 @@ public partial class OverlayWindow : Window
                 NativeMethods.SWP_NOOWNERZORDER);
         }
 
+        var scale = GetDipScale(_windowHandle, target.Handle);
+        Width = Math.Max(1, overlayBounds.Width * scale);
+        Height = Math.Max(1, overlayBounds.Height * scale);
+
+        if (_windowHandle == IntPtr.Zero)
+        {
+            Left = overlayBounds.Left * scale;
+            Top = overlayBounds.Top * scale;
+        }
+
         var targetBoundsDip = new Rect(
             outset * scale,
             outset * scale,
@@ -105,6 +103,17 @@ public partial class OverlayWindow : Window
             target.Bounds.Height * scale);
 
         return new OverlayPlacement(overlayBounds, targetBoundsDip, scale);
+    }
+
+    private static double GetDipScale(IntPtr preferredDpiHandle, IntPtr fallbackDpiHandle)
+    {
+        var dpi = preferredDpiHandle == IntPtr.Zero ? 0 : NativeMethods.GetDpiForWindow(preferredDpiHandle);
+        if (dpi == 0 && fallbackDpiHandle != IntPtr.Zero)
+        {
+            dpi = NativeMethods.GetDpiForWindow(fallbackDpiHandle);
+        }
+
+        return 96.0 / Math.Max(96, dpi);
     }
 
     private void ApplyTheme(
