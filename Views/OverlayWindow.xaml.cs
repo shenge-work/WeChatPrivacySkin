@@ -18,6 +18,8 @@ namespace WeChatPrivacySkin;
 public partial class OverlayWindow : Window
 {
     private IntPtr _windowHandle;
+    private OverlayRenderState? _lastRenderState;
+    private OverlayRegionState? _lastRegionState;
 
     public OverlayWindow(IntPtr targetHandle)
     {
@@ -50,14 +52,32 @@ public partial class OverlayWindow : Window
         PrivacyDecision decision,
         AppSettings settings,
         Rect? activeWeChatBounds,
+        WeChatLayout layout,
         RevealZone? revealZone = null)
     {
         var theme = ThemeCatalog.Get(settings.ThemePackId);
         var skin = OverlaySkinCatalog.Get(settings.OverlaySkinId);
         var zone = revealZone ?? RevealZone.None;
         var placement = PositionOver(decision.Window, settings, theme);
-        ApplyTheme(settings, theme, skin, decision, placement, zone);
-        ApplyWindowRegion(placement.OverlayBoundsPx, decision.Window.Bounds, activeWeChatBounds, zone);
+        var layoutDip = WeChatLayoutCalculator.Map(layout, decision.Window.Bounds, placement.TargetBoundsDip);
+        var renderState = OverlayRenderState.Create(settings, decision, placement, layoutDip, zone);
+        if (_lastRenderState != renderState)
+        {
+            ApplyTheme(settings, theme, skin, decision, placement, layoutDip, zone);
+            _lastRenderState = renderState;
+        }
+
+        var regionState = new OverlayRegionState(
+            placement.OverlayBoundsPx,
+            decision.Window.Bounds,
+            activeWeChatBounds ?? Rect.Empty,
+            activeWeChatBounds is not null,
+            zone);
+        if (_lastRegionState != regionState)
+        {
+            ApplyWindowRegion(placement.OverlayBoundsPx, decision.Window.Bounds, activeWeChatBounds, zone);
+            _lastRegionState = regionState;
+        }
     }
 
     private OverlayPlacement PositionOver(WeChatWindowInfo target, AppSettings settings, ThemePack theme)
@@ -123,6 +143,7 @@ public partial class OverlayWindow : Window
         OverlaySkin skin,
         PrivacyDecision decision,
         OverlayPlacement placement,
+        WeChatLayout layout,
         RevealZone revealZone)
     {
         var mode = settings.Privacy.Mode;
@@ -146,11 +167,11 @@ public partial class OverlayWindow : Window
 
         if (decision.Window.IsUtilityLike)
         {
-            DrawUtilitySkeleton(theme, placement, revealZone);
+            DrawUtilitySkeleton(theme, placement, layout, revealZone);
         }
         else
         {
-            DrawWeChatSkeleton(theme, decision.Window, placement, revealZone);
+            DrawWeChatSkeleton(theme, placement, layout, revealZone);
         }
 
         DrawCaption(theme, mode, decision, placement);
@@ -197,12 +218,10 @@ public partial class OverlayWindow : Window
         }
     }
 
-    private void DrawWeChatSkeleton(ThemePack theme, WeChatWindowInfo window, OverlayPlacement placement, RevealZone revealZone)
+    private void DrawWeChatSkeleton(ThemePack theme, OverlayPlacement placement, WeChatLayout layout, RevealZone revealZone)
     {
         var bounds = placement.TargetBoundsDip;
         var scale = placement.Scale;
-        var layout = WeChatUiAutomationLayoutProbe.TryCreate(window.Handle, window.Bounds, bounds, false, scale) ??
-                     WeChatLayoutCalculator.Create(bounds, false, scale);
         var sideRect = layout.ConversationList;
         var titleRect = layout.TitleBar;
         var messageRect = layout.MessageArea;
@@ -224,11 +243,10 @@ public partial class OverlayWindow : Window
         DrawRevealChrome(theme, placement, revealZone);
     }
 
-    private void DrawUtilitySkeleton(ThemePack theme, OverlayPlacement placement, RevealZone revealZone)
+    private void DrawUtilitySkeleton(ThemePack theme, OverlayPlacement placement, WeChatLayout layout, RevealZone revealZone)
     {
         var bounds = placement.TargetBoundsDip;
         var scale = placement.Scale;
-        var layout = WeChatLayoutCalculator.Create(bounds, true, scale);
         var titleRect = layout.TitleBar;
         var bodyRect = layout.UtilityBody;
         var footerRect = layout.InputArea;
@@ -918,5 +936,64 @@ public partial class OverlayWindow : Window
         _ => "微信隐私守护"
     };
 
+    private static int CreateLayoutHash(WeChatLayout layout)
+    {
+        var hash = new HashCode();
+        hash.Add(layout.ConversationList);
+        hash.Add(layout.TitleBar);
+        hash.Add(layout.MessageArea);
+        hash.Add(layout.InputArea);
+        hash.Add(layout.InputEditor);
+        hash.Add(layout.UtilityBody);
+        foreach (var row in layout.ConversationRows)
+        {
+            hash.Add(row);
+        }
+
+        return hash.ToHashCode();
+    }
+
     private readonly record struct OverlayPlacement(Rect OverlayBoundsPx, Rect TargetBoundsDip, double Scale);
+
+    private readonly record struct OverlayRenderState(
+        string ThemePackId,
+        string OverlaySkinId,
+        string CustomSkinImagePath,
+        string BackgroundImagePath,
+        double OverlayOpacity,
+        bool DecorativeMotionEnabled,
+        PrivacyMode PrivacyMode,
+        WeChatWindowKind WindowKind,
+        Rect TargetBoundsDip,
+        int LayoutHash,
+        RevealZone RevealZone)
+    {
+        public static OverlayRenderState Create(
+            AppSettings settings,
+            PrivacyDecision decision,
+            OverlayPlacement placement,
+            WeChatLayout layout,
+            RevealZone revealZone)
+        {
+            return new OverlayRenderState(
+                settings.ThemePackId,
+                settings.OverlaySkinId,
+                settings.CustomSkinImagePath ?? string.Empty,
+                settings.BackgroundImagePath ?? string.Empty,
+                settings.OverlayOpacity,
+                settings.DecorativeMotionEnabled,
+                settings.Privacy.Mode,
+                decision.Window.Kind,
+                placement.TargetBoundsDip,
+                CreateLayoutHash(layout),
+                revealZone);
+        }
+    }
+
+    private readonly record struct OverlayRegionState(
+        Rect OverlayBoundsPx,
+        Rect TargetBoundsPx,
+        Rect ActiveBoundsPx,
+        bool HasActiveBounds,
+        RevealZone RevealZone);
 }

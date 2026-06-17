@@ -11,6 +11,7 @@ public sealed class OverlayManager : IDisposable
     private readonly SettingsService _settingsService;
     private readonly WeChatWindowLocator _windowLocator = new();
     private readonly PrivacyPolicyService _privacyPolicy = new();
+    private readonly WeChatLayoutProvider _layoutProvider = new();
     private readonly Dictionary<IntPtr, OverlayWindow> _overlays = new();
     private readonly HashSet<IntPtr> _coveredHandlesLastTick = new();
     private readonly Dictionary<IntPtr, DateTime> _taskbarMinimizeCooldownUntil = new();
@@ -106,16 +107,18 @@ public sealed class OverlayManager : IDisposable
             }
 
             liveHandles.Add(window.Handle);
+            var layout = _layoutProvider.GetLayout(window, ShouldUsePreciseLayout(settings, window, snapshot.ActiveWindow, cursorPoint));
+            var revealZone = ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow, layout);
             if (!_overlays.TryGetValue(window.Handle, out var overlay))
             {
                 overlay = new OverlayWindow(window.Handle);
                 _overlays[window.Handle] = overlay;
                 overlay.Show();
-                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow));
+                overlay.UpdateFrom(decision, settings, activeBounds, layout, revealZone);
             }
             else
             {
-                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow));
+                overlay.UpdateFrom(decision, settings, activeBounds, layout, revealZone);
             }
         }
 
@@ -125,6 +128,7 @@ public sealed class OverlayManager : IDisposable
         }
 
         UpdateCoveredHandlesLastTick(snapshot.Decisions);
+        _layoutProvider.Prune(windows.Select(window => window.Handle).ToHashSet());
     }
 
     private void UpdateFocusFrame(WeChatWindowInfo? foregroundWeChat, AppSettings settings)
@@ -273,7 +277,8 @@ public sealed class OverlayManager : IDisposable
         ThemePack theme,
         AppSettings settings,
         WpfPoint? cursorPoint,
-        WeChatWindowInfo? activeWindow)
+        WeChatWindowInfo? activeWindow,
+        WeChatLayout layout)
     {
         if (settings.Privacy.Mode is not PrivacyMode.FocusChat and not PrivacyMode.SpotlightChat || cursorPoint is null)
         {
@@ -291,9 +296,20 @@ public sealed class OverlayManager : IDisposable
             return RevealZone.None;
         }
 
-        var layout = WeChatUiAutomationLayoutProbe.TryCreate(window.Handle, window.Bounds, window.Bounds, window.IsUtilityLike, 1) ??
-                     WeChatLayoutCalculator.Create(window.Bounds, window.IsUtilityLike, 1);
         return ResolveLayoutZone(window.Bounds, settings.Privacy.Mode, layout, cursorPoint.Value);
+    }
+
+    private static bool ShouldUsePreciseLayout(
+        AppSettings settings,
+        WeChatWindowInfo window,
+        WeChatWindowInfo? activeWindow,
+        WpfPoint? cursorPoint)
+    {
+        return settings.Privacy.Mode == PrivacyMode.SpotlightChat &&
+               activeWindow?.Handle == window.Handle &&
+               !window.IsUtilityLike &&
+               cursorPoint is not null &&
+               window.Bounds.Contains(cursorPoint.Value);
     }
 
     private static Rect CreateOverlayBounds(WeChatWindowInfo window, ThemePack theme)
@@ -406,6 +422,7 @@ public sealed class OverlayManager : IDisposable
 
         _coveredHandlesLastTick.Clear();
         _taskbarMinimizeCooldownUntil.Clear();
+        _layoutProvider.Clear();
     }
 
     public void Dispose()

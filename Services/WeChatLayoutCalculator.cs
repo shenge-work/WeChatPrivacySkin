@@ -59,6 +59,23 @@ public static class WeChatLayoutCalculator
             bounds.Height * ratioRect.Height);
     }
 
+    public static WeChatLayout Map(WeChatLayout layout, Rect sourceBounds, Rect targetBounds)
+    {
+        if (sourceBounds.IsEmpty || targetBounds.IsEmpty || sourceBounds.Width <= 0 || sourceBounds.Height <= 0)
+        {
+            return layout;
+        }
+
+        return new WeChatLayout(
+            MapRect(layout.ConversationList, sourceBounds, targetBounds),
+            MapRect(layout.TitleBar, sourceBounds, targetBounds),
+            MapRect(layout.MessageArea, sourceBounds, targetBounds),
+            MapRect(layout.InputArea, sourceBounds, targetBounds),
+            MapRect(layout.InputEditor, sourceBounds, targetBounds),
+            MapRect(layout.UtilityBody, sourceBounds, targetBounds),
+            layout.ConversationRows.Select(row => MapRect(row, sourceBounds, targetBounds)).ToArray());
+    }
+
     public static Rect? FindConversationRowAt(WeChatLayout layout, WpfPoint point, double scale)
     {
         var padding = Math.Max(4, 4 * scale);
@@ -160,5 +177,11 @@ public static class WeChatLayoutCalculator
     private static double Clamp(double value, double min, double max)
     {
         return Math.Max(min, Math.Min(max, value));
+    }
+
+    private static Rect MapRect(Rect rect, Rect sourceBounds, Rect targetBounds)
+    {
+        var ratio = ToRatioRect(sourceBounds, rect);
+        return FromRatioRect(targetBounds, ratio);
     }
 }

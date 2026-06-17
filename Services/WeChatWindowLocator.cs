@@ -6,10 +6,12 @@ namespace WeChatPrivacySkin;
 
 public sealed class WeChatWindowLocator
 {
+    private static readonly TimeSpan ProcessPathCacheTtl = TimeSpan.FromSeconds(10);
+    private readonly Dictionary<uint, ProcessPathCacheEntry> _processPathCache = new();
+
     public IReadOnlyList<WeChatWindowInfo> FindVisibleWindows(AppSettings settings)
     {
         var results = new List<WeChatWindowInfo>();
-        var processPathCache = new Dictionary<uint, string?>();
 
         NativeMethods.EnumWindows((hWnd, _) =>
         {
@@ -24,11 +26,7 @@ public sealed class WeChatWindowLocator
                 return true;
             }
 
-            if (!processPathCache.TryGetValue(processId, out var processPath))
-            {
-                processPath = QueryProcessPath(processId);
-                processPathCache[processId] = processPath;
-            }
+            var processPath = GetProcessPath(processId);
 
             if (!IsWeChatProcess(processPath, settings))
             {
@@ -55,6 +53,28 @@ public sealed class WeChatWindowLocator
         }, IntPtr.Zero);
 
         return results;
+    }
+
+    private string? GetProcessPath(uint processId)
+    {
+        var now = DateTime.UtcNow;
+        if (_processPathCache.TryGetValue(processId, out var entry) && entry.ExpiresAtUtc > now)
+        {
+            return entry.Path;
+        }
+
+        var processPath = QueryProcessPath(processId);
+        _processPathCache[processId] = new ProcessPathCacheEntry(processPath, now.Add(ProcessPathCacheTtl));
+
+        foreach (var expiredProcessId in _processPathCache
+                     .Where(pair => pair.Value.ExpiresAtUtc <= now)
+                     .Select(pair => pair.Key)
+                     .ToArray())
+        {
+            _processPathCache.Remove(expiredProcessId);
+        }
+
+        return processPath;
     }
 
     private static bool IsWeChatProcess(string? processPath, AppSettings settings)
@@ -196,4 +216,6 @@ public sealed class WeChatWindowLocator
     {
         return terms.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
+
+    private sealed record ProcessPathCacheEntry(string? Path, DateTime ExpiresAtUtc);
 }
