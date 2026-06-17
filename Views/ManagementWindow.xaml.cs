@@ -582,6 +582,8 @@ public partial class ManagementWindow : Window
 
     private void FocusMode_OnClick(object sender, RoutedEventArgs e) => SetPrivacyMode(PrivacyMode.FocusChat);
 
+    private void SpotlightMode_OnClick(object sender, RoutedEventArgs e) => SetPrivacyMode(PrivacyMode.SpotlightChat);
+
     private void Exit_OnClick(object sender, RoutedEventArgs e)
     {
         _exitApplication();

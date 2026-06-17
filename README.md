@@ -17,6 +17,7 @@
   - 离席保护：遮住所有微信窗口。
   - 快速净屏：一键遮住所有微信窗口，再按一次回到日常保护。
   - 专注聊天：只保留当前聊天窗口可见，其他微信窗口显示仿微信骨架遮罩；鼠标悬停到会话列表、标题区、消息区或输入区时，仅对应区域临时透出，移出遮罩后恢复全遮罩。
+  - 聚光聊天：当前微信窗口也会遮罩；鼠标悬停到输入区、消息区或标题区时只透出该区域，悬停会话列表时只透出当前联系人行。
 - 全局快捷键：
   - `Ctrl + Alt + P`：开启/关闭隐私守护。
   - `Ctrl + Alt + T`：切换主题皮肤。
@@ -60,7 +61,7 @@ D:\WeChatPrivacySkin\bin\Release\net10.0-windows\win-x64\publish\WeChatPrivacySk
 - 不读取聊天内容，不截图微信窗口。
 - 不修改微信安装目录，不注入微信进程，不绕过微信安全机制。
 - 主题皮肤是外层沉浸效果，不替换微信内部聊天气泡、消息列表或控件样式。
-- 专注聊天的悬停透视按窗口比例模拟微信布局，不读取真实控件树、联系人或消息文本。
+- 专注聊天和聚光聊天的悬停透视按窗口比例模拟微信布局，不读取真实控件树、联系人或消息文本；聚光聊天的联系人行级透出也是按鼠标位置估算。
 - 不规则外形和 PNG 皮肤只作为视觉层叠加，底层完整遮罩仍覆盖微信窗口，避免透明区域泄露聊天内容。
 - 内置卡通造型均为原创风格，不包含官方角色图片、商标或源素材；自定义 PNG 由用户从本地选择。
 - 共享“整个屏幕”时遮罩会被一起捕获；部分会议软件如果只共享某一个微信窗口，可能会绕过外层遮罩。
@@ -88,6 +89,7 @@ WeChatPrivacySkin is a Windows companion app for WeChat. It does not modify, inj
   - Away cover: cover all WeChat windows when stepping away from the desk.
   - Clean screen: instantly cover all WeChat windows, then press again to return to daily protection.
   - Focus chat: keep only the active chat window visible. Other WeChat windows show a WeChat-like skeleton mask; hovering the conversation list, title bar, message area, or input area temporarily reveals only that region, and leaving the overlay restores the full mask.
+  - Spotlight chat: mask the active WeChat window too. Hovering the input area, message area, or title bar reveals only that region; hovering the conversation list reveals only the current contact row.
 - Global hotkeys:
   - `Ctrl + Alt + P`: enable or disable privacy protection.
   - `Ctrl + Alt + T`: switch theme skins.
@@ -131,7 +133,7 @@ D:\WeChatPrivacySkin\bin\Release\net10.0-windows\win-x64\publish\WeChatPrivacySk
 - The app does not read chat content or take screenshots of WeChat windows.
 - The app does not modify the WeChat installation directory, inject into WeChat, or bypass WeChat security mechanisms.
 - Theme skins are external immersive overlays; they do not replace WeChat's internal chat bubbles, message list, or native controls.
-- Focus-chat hover reveal uses proportional mock layout regions only; it does not inspect real UI controls, contacts, or message text.
+- Focus-chat and Spotlight-chat hover reveal use proportional mock layout regions only; they do not inspect real UI controls, contacts, or message text. Spotlight contact-row reveal is estimated from the cursor position.
 - Non-rectangular and PNG skins are visual layers only; the full privacy mask still covers WeChat windows so transparent skin areas do not expose chat content.
 - Built-in cartoon skins are original designs and do not include official character images, trademarks, or source artwork; custom PNG files are selected locally by the user.
 - When sharing the entire screen, overlays should be captured together with the screen. Some meeting tools may bypass the overlay if only a single WeChat window is shared.

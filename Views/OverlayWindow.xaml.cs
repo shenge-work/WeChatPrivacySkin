@@ -126,7 +126,7 @@ public partial class OverlayWindow : Window
         RevealZone revealZone)
     {
         var mode = settings.Privacy.Mode;
-        var boost = mode is PrivacyMode.MeetingShare or PrivacyMode.AwayCover or PrivacyMode.CleanScreen ? 0.12 : 0;
+        var boost = mode is PrivacyMode.MeetingShare or PrivacyMode.AwayCover or PrivacyMode.CleanScreen or PrivacyMode.SpotlightChat ? 0.12 : 0;
         var overlayOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity + boost, 0.35, 0.98) * 255);
         var panelOpacity = (byte)Math.Round(Math.Clamp(settings.OverlayOpacity + 0.08 + boost, 0.45, 0.99) * 255);
 
@@ -201,27 +201,22 @@ public partial class OverlayWindow : Window
     {
         var bounds = placement.TargetBoundsDip;
         var scale = placement.Scale;
-        var sideWidth = Clamp(bounds.Width * 0.28, 118 * scale, Math.Max(120 * scale, bounds.Width * 0.36));
-        var titleHeight = Clamp(bounds.Height * 0.12, 44 * scale, 72 * scale);
-        var inputHeight = Clamp(bounds.Height * 0.20, 82 * scale, 150 * scale);
-        var contentWidth = Math.Max(1, bounds.Width - sideWidth);
-        var messageHeight = Math.Max(42 * scale, bounds.Height - titleHeight - inputHeight);
-
-        var sideRect = new Rect(bounds.Left, bounds.Top, sideWidth, bounds.Height);
-        var titleRect = new Rect(bounds.Left + sideWidth, bounds.Top, contentWidth, titleHeight);
-        var messageRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight, contentWidth, messageHeight);
-        var inputRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight + messageHeight, contentWidth, inputHeight);
+        var layout = WeChatLayoutCalculator.Create(bounds, false, scale);
+        var sideRect = layout.ConversationList;
+        var titleRect = layout.TitleBar;
+        var messageRect = layout.MessageArea;
+        var inputRect = layout.InputArea;
 
         AddRoundedRect(SkeletonCanvas, sideRect, theme.CornerRadius * scale, Fill(theme.BackgroundColor, 118), null, 0);
         AddRoundedRect(SkeletonCanvas, titleRect, theme.CornerRadius * scale, Fill(theme.PanelColor, 138), null, 0);
         AddRoundedRect(SkeletonCanvas, messageRect, 0, Fill(theme.BackgroundColor, 68), null, 0);
         AddRoundedRect(SkeletonCanvas, inputRect, Math.Max(8, theme.CornerRadius * scale), Fill(theme.PanelColor, 128), null, 0);
 
-        AddLine(SkeletonCanvas, bounds.Left + sideWidth, bounds.Top + 12 * scale, bounds.Left + sideWidth, bounds.Bottom - 12 * scale, theme.AccentColor, 74, Math.Max(1, scale));
+        AddLine(SkeletonCanvas, sideRect.Right, bounds.Top + 12 * scale, sideRect.Right, bounds.Bottom - 12 * scale, theme.AccentColor, 74, Math.Max(1, scale));
         AddLine(SkeletonCanvas, titleRect.Left + 14 * scale, titleRect.Bottom, titleRect.Right - 14 * scale, titleRect.Bottom, theme.AccentColor, 58, Math.Max(1, scale));
         AddLine(SkeletonCanvas, inputRect.Left + 14 * scale, inputRect.Top, inputRect.Right - 14 * scale, inputRect.Top, theme.AccentColor, 58, Math.Max(1, scale));
 
-        DrawConversationRows(theme, sideRect, scale);
+        DrawConversationRows(theme, layout.ConversationRows, scale);
         DrawTitleSkeleton(theme, titleRect, scale);
         DrawMessageSkeleton(theme, messageRect, scale);
         DrawInputSkeleton(theme, inputRect, scale);
@@ -232,54 +227,50 @@ public partial class OverlayWindow : Window
     {
         var bounds = placement.TargetBoundsDip;
         var scale = placement.Scale;
-        var titleHeight = Clamp(bounds.Height * 0.18, 34 * scale, 58 * scale);
-        var footerHeight = Clamp(bounds.Height * 0.20, 38 * scale, 72 * scale);
-        var bodyRect = new Rect(bounds.Left, bounds.Top + titleHeight, bounds.Width, Math.Max(20 * scale, bounds.Height - titleHeight - footerHeight));
-        var footerRect = new Rect(bounds.Left, bodyRect.Bottom, bounds.Width, footerHeight);
+        var layout = WeChatLayoutCalculator.Create(bounds, true, scale);
+        var titleRect = layout.TitleBar;
+        var bodyRect = layout.UtilityBody;
+        var footerRect = layout.InputArea;
 
         AddRoundedRect(SkeletonCanvas, bounds, theme.CornerRadius * scale, Fill(theme.PanelColor, 124), null, 0);
-        AddRoundedRect(SkeletonCanvas, new Rect(bounds.Left, bounds.Top, bounds.Width, titleHeight), theme.CornerRadius * scale, Fill(theme.BackgroundColor, 94), null, 0);
+        AddRoundedRect(SkeletonCanvas, titleRect, theme.CornerRadius * scale, Fill(theme.BackgroundColor, 94), null, 0);
         AddRoundedRect(SkeletonCanvas, bodyRect, 0, Fill(theme.BackgroundColor, 62), null, 0);
         AddRoundedRect(SkeletonCanvas, footerRect, theme.CornerRadius * scale, Fill(theme.PanelColor, 112), null, 0);
 
-        AddRoundedRect(SkeletonCanvas, new Rect(bounds.Left + 18 * scale, bounds.Top + 14 * scale, bounds.Width * 0.46, 10 * scale), 5 * scale, Fill(theme.PlaceholderColor, 185), null, 0);
+        AddRoundedRect(SkeletonCanvas, new Rect(titleRect.Left + 18 * scale, titleRect.Top + 14 * scale, titleRect.Width * 0.46, 10 * scale), 5 * scale, Fill(theme.PlaceholderColor, 185), null, 0);
         AddRoundedRect(SkeletonCanvas, new Rect(bodyRect.Left + 20 * scale, bodyRect.Top + 22 * scale, bodyRect.Width * 0.72, 12 * scale), 6 * scale, Fill(theme.PlaceholderColor, 170), null, 0);
         AddRoundedRect(SkeletonCanvas, new Rect(bodyRect.Left + 20 * scale, bodyRect.Top + 46 * scale, bodyRect.Width * 0.56, 12 * scale), 6 * scale, Fill(theme.PlaceholderColor, 150), null, 0);
         AddRoundedRect(SkeletonCanvas, new Rect(footerRect.Right - 98 * scale, footerRect.Top + 16 * scale, 78 * scale, 22 * scale), 11 * scale, Fill(theme.AccentColor, 145), null, 0);
         DrawRevealChrome(theme, placement, revealZone);
     }
 
-    private void DrawConversationRows(ThemePack theme, Rect sideRect, double scale)
+    private void DrawConversationRows(ThemePack theme, IReadOnlyList<Rect> rows, double scale)
     {
-        var top = sideRect.Top + 18 * scale;
-        var rowHeight = Clamp(sideRect.Height * 0.105, 48 * scale, 64 * scale);
-        var rows = Math.Max(3, Math.Min(8, (int)((sideRect.Height - 28 * scale) / rowHeight)));
-
-        for (var i = 0; i < rows; i++)
+        for (var i = 0; i < rows.Count; i++)
         {
-            var rowTop = top + i * rowHeight;
+            var rowRect = rows[i];
             var rowOpacity = i == 1 ? (byte)92 : (byte)42;
             AddRoundedRect(
                 SkeletonCanvas,
-                new Rect(sideRect.Left + 8 * scale, rowTop, sideRect.Width - 16 * scale, rowHeight - 8 * scale),
+                rowRect,
                 12 * scale,
                 Fill(theme.PanelColor, rowOpacity),
                 null,
                 0);
             AddEllipse(
                 SkeletonCanvas,
-                new Rect(sideRect.Left + 18 * scale, rowTop + 9 * scale, 30 * scale, 30 * scale),
+                new Rect(rowRect.Left + 10 * scale, rowRect.Top + 9 * scale, 30 * scale, 30 * scale),
                 Fill(theme.PlaceholderColor, 170));
             AddRoundedRect(
                 SkeletonCanvas,
-                new Rect(sideRect.Left + 58 * scale, rowTop + 12 * scale, sideRect.Width * 0.46, 8 * scale),
+                new Rect(rowRect.Left + 50 * scale, rowRect.Top + 12 * scale, rowRect.Width * 0.46, 8 * scale),
                 4 * scale,
                 Fill(theme.PlaceholderColor, 155),
                 null,
                 0);
             AddRoundedRect(
                 SkeletonCanvas,
-                new Rect(sideRect.Left + 58 * scale, rowTop + 28 * scale, sideRect.Width * 0.34, 7 * scale),
+                new Rect(rowRect.Left + 50 * scale, rowRect.Top + 28 * scale, rowRect.Width * 0.34, 7 * scale),
                 3.5 * scale,
                 Fill(theme.PlaceholderColor, 98),
                 null,
@@ -922,6 +913,7 @@ public partial class OverlayWindow : Window
         PrivacyMode.AwayCover => "离席保护",
         PrivacyMode.CleanScreen => "快速净屏",
         PrivacyMode.FocusChat => "专注聊天",
+        PrivacyMode.SpotlightChat => "聚光聊天",
         _ => "微信隐私守护"
     };
 

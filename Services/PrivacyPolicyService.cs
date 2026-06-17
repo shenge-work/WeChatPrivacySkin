@@ -51,6 +51,13 @@ public sealed class PrivacyPolicyService
             return new PrivacyDecision(window, true, isActive, PrivacyModeCatalog.DisplayName(mode));
         }
 
+        if (mode == PrivacyMode.SpotlightChat)
+        {
+            return new PrivacyDecision(window, true, isActive, isActive
+                ? "聚光聊天：当前窗口仅鼠标区域可见"
+                : "聚光聊天：非当前窗口完整遮罩");
+        }
+
         if (mode == PrivacyMode.MeetingShare && window.IsUtilityLike && !isActive)
         {
             return new PrivacyDecision(window, true, false, "会议共享：微信弹窗已脱敏");

@@ -23,9 +23,11 @@ public enum RevealZoneKind
 {
     None,
     ConversationList,
+    ConversationRow,
     TitleBar,
     MessageArea,
     InputArea,
+    InputEditor,
     UtilityBody
 }
 

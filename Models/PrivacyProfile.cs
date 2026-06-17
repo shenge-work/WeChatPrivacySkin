@@ -16,7 +16,8 @@ public enum PrivacyMode
     MeetingShare,
     AwayCover,
     CleanScreen,
-    FocusChat
+    FocusChat,
+    SpotlightChat
 }
 
 public sealed class PrivacyProfile
@@ -76,7 +77,8 @@ public static class PrivacyModeCatalog
         PrivacyMode.MeetingShare,
         PrivacyMode.AwayCover,
         PrivacyMode.CleanScreen,
-        PrivacyMode.FocusChat
+        PrivacyMode.FocusChat,
+        PrivacyMode.SpotlightChat
     ];
 
     public static string DisplayName(PrivacyMode mode) => mode switch
@@ -85,6 +87,7 @@ public static class PrivacyModeCatalog
         PrivacyMode.AwayCover => "离席保护",
         PrivacyMode.CleanScreen => "快速净屏",
         PrivacyMode.FocusChat => "专注聊天",
+        PrivacyMode.SpotlightChat => "聚光聊天",
         _ => "日常保护"
     };
 
@@ -94,6 +97,7 @@ public static class PrivacyModeCatalog
         PrivacyMode.AwayCover => "临时离开工位时遮住所有微信窗口。",
         PrivacyMode.CleanScreen => "一键遮住所有微信窗口，适合有人靠近或临时投屏。",
         PrivacyMode.FocusChat => "只保留当前聊天窗口可见，减少其他微信窗口干扰。",
+        PrivacyMode.SpotlightChat => "当前微信窗口也遮罩，只透出鼠标所在区域或联系人行。",
         _ => "当前微信窗口可见，其他微信窗口自动脱敏。"
     };
 

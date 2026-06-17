@@ -115,6 +115,7 @@
                                     <Button Content="离席保护" Margin="0,0,10,10" Click="AwayMode_OnClick"/>
                                     <Button Content="快速净屏" Margin="0,0,10,10" Click="CleanMode_OnClick"/>
                                     <Button Content="专注聊天" Margin="0,0,10,10" Click="FocusMode_OnClick"/>
+                                    <Button Content="聚光聊天" Margin="0,0,10,10" Click="SpotlightMode_OnClick"/>
                                 </WrapPanel>
                                 <TextBlock x:Name="ActiveWindowText"
                                            Margin="0,10,0,0"

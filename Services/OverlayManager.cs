@@ -86,11 +86,11 @@ public sealed class OverlayManager : IDisposable
         }
 
         var theme = ThemeCatalog.Get(settings.ThemePackId);
-        var cursorPoint = settings.Privacy.Mode == PrivacyMode.FocusChat && TryGetCursorPoint(out var point)
+        var cursorPoint = settings.Privacy.Mode is PrivacyMode.FocusChat or PrivacyMode.SpotlightChat && TryGetCursorPoint(out var point)
             ? point
             : (WpfPoint?)null;
         var activeWindowIsVisible = snapshot.ActiveWindow is not null &&
-                                    settings.Privacy.Mode is not PrivacyMode.AwayCover and not PrivacyMode.CleanScreen;
+                                    settings.Privacy.Mode is not PrivacyMode.AwayCover and not PrivacyMode.CleanScreen and not PrivacyMode.SpotlightChat;
         var activeBounds = activeWindowIsVisible ? snapshot.ActiveWindow?.Bounds : null;
         var liveHandles = new HashSet<IntPtr>();
 
@@ -111,11 +111,11 @@ public sealed class OverlayManager : IDisposable
                 overlay = new OverlayWindow(window.Handle);
                 _overlays[window.Handle] = overlay;
                 overlay.Show();
-                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint));
+                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow));
             }
             else
             {
-                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint));
+                overlay.UpdateFrom(decision, settings, activeBounds, ResolveRevealZone(window, theme, settings, cursorPoint, snapshot.ActiveWindow));
             }
         }
 
@@ -272,9 +272,15 @@ public sealed class OverlayManager : IDisposable
         WeChatWindowInfo window,
         ThemePack theme,
         AppSettings settings,
-        WpfPoint? cursorPoint)
+        WpfPoint? cursorPoint,
+        WeChatWindowInfo? activeWindow)
     {
-        if (settings.Privacy.Mode != PrivacyMode.FocusChat || cursorPoint is null)
+        if (settings.Privacy.Mode is not PrivacyMode.FocusChat and not PrivacyMode.SpotlightChat || cursorPoint is null)
+        {
+            return RevealZone.None;
+        }
+
+        if (settings.Privacy.Mode == PrivacyMode.SpotlightChat && activeWindow?.Handle != window.Handle)
         {
             return RevealZone.None;
         }
@@ -285,19 +291,8 @@ public sealed class OverlayManager : IDisposable
             return RevealZone.None;
         }
 
-        var ratioPoint = new WpfPoint(
-            Math.Clamp((cursorPoint.Value.X - window.Bounds.Left) / Math.Max(1, window.Bounds.Width), 0, 1),
-            Math.Clamp((cursorPoint.Value.Y - window.Bounds.Top) / Math.Max(1, window.Bounds.Height), 0, 1));
-
-        foreach (var zone in GetRevealZones(window))
-        {
-            if (zone.RatioRect.Contains(ratioPoint))
-            {
-                return zone;
-            }
-        }
-
-        return RevealZone.None;
+        var layout = WeChatLayoutCalculator.Create(window.Bounds, window.IsUtilityLike, 1);
+        return ResolveLayoutZone(window.Bounds, settings.Privacy.Mode, layout, cursorPoint.Value);
     }
 
     private static Rect CreateOverlayBounds(WeChatWindowInfo window, ThemePack theme)
@@ -310,20 +305,61 @@ public sealed class OverlayManager : IDisposable
             window.Bounds.Height + outset * 2);
     }
 
-    private static IEnumerable<RevealZone> GetRevealZones(WeChatWindowInfo window)
+    private static RevealZone ResolveLayoutZone(
+        Rect windowBounds,
+        PrivacyMode mode,
+        WeChatLayout layout,
+        WpfPoint cursorPoint)
     {
-        if (window.IsUtilityLike)
+        if (!layout.TitleBar.IsEmpty && layout.TitleBar.Contains(cursorPoint))
         {
-            yield return new RevealZone(RevealZoneKind.TitleBar, new Rect(0, 0, 1, 0.18), 12, "标题区");
-            yield return new RevealZone(RevealZoneKind.UtilityBody, new Rect(0, 0.18, 1, 0.62), 14, "内容区");
-            yield return new RevealZone(RevealZoneKind.InputArea, new Rect(0, 0.80, 1, 0.20), 12, "操作区");
-            yield break;
+            return CreateRevealZone(windowBounds, RevealZoneKind.TitleBar, layout.TitleBar, 12, "标题区");
         }
 
-        yield return new RevealZone(RevealZoneKind.ConversationList, new Rect(0, 0, 0.28, 1), 14, "会话列表");
-        yield return new RevealZone(RevealZoneKind.TitleBar, new Rect(0.28, 0, 0.72, 0.12), 12, "标题区");
-        yield return new RevealZone(RevealZoneKind.MessageArea, new Rect(0.28, 0.12, 0.72, 0.68), 18, "消息区");
-        yield return new RevealZone(RevealZoneKind.InputArea, new Rect(0.28, 0.80, 0.72, 0.20), 16, "输入区");
+        if (!layout.UtilityBody.IsEmpty && layout.UtilityBody.Contains(cursorPoint))
+        {
+            return CreateRevealZone(windowBounds, RevealZoneKind.UtilityBody, layout.UtilityBody, 14, "内容区");
+        }
+
+        if (!layout.ConversationList.IsEmpty && layout.ConversationList.Contains(cursorPoint))
+        {
+            if (mode == PrivacyMode.SpotlightChat)
+            {
+                var row = WeChatLayoutCalculator.FindConversationRowAt(layout, cursorPoint, 1);
+                return row is null
+                    ? RevealZone.None
+                    : CreateRevealZone(windowBounds, RevealZoneKind.ConversationRow, row.Value, 12, "当前联系人");
+            }
+
+            return CreateRevealZone(windowBounds, RevealZoneKind.ConversationList, layout.ConversationList, 14, "会话列表");
+        }
+
+        if (!layout.MessageArea.IsEmpty && layout.MessageArea.Contains(cursorPoint))
+        {
+            return CreateRevealZone(windowBounds, RevealZoneKind.MessageArea, layout.MessageArea, 18, "消息区");
+        }
+
+        if (!layout.InputArea.IsEmpty && layout.InputArea.Contains(cursorPoint))
+        {
+            var kind = mode == PrivacyMode.SpotlightChat ? RevealZoneKind.InputEditor : RevealZoneKind.InputArea;
+            var hint = mode == PrivacyMode.SpotlightChat ? "编辑区" : "输入区";
+            return CreateRevealZone(windowBounds, kind, layout.InputArea, 16, hint);
+        }
+
+        return RevealZone.None;
+    }
+
+    private static RevealZone CreateRevealZone(
+        Rect windowBounds,
+        RevealZoneKind kind,
+        Rect absoluteRect,
+        double cornerRadius,
+        string hint)
+    {
+        var ratioRect = WeChatLayoutCalculator.ToRatioRect(windowBounds, absoluteRect);
+        return ratioRect.IsEmpty
+            ? RevealZone.None
+            : new RevealZone(kind, ratioRect, cornerRadius, hint);
     }
 
     private void CloseFocusFrame()
