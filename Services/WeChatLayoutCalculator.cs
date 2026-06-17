@@ -79,7 +79,7 @@ public static class WeChatLayoutCalculator
     {
         var sideWidth = Clamp(bounds.Width * 0.28, 118 * scale, Math.Max(120 * scale, bounds.Width * 0.36));
         var titleHeight = Clamp(bounds.Height * 0.12, 44 * scale, 72 * scale);
-        var inputHeight = Clamp(bounds.Height * 0.20, 82 * scale, 150 * scale);
+        var inputHeight = Clamp(bounds.Height * 0.24, 96 * scale, 170 * scale);
         var contentWidth = Math.Max(1, bounds.Width - sideWidth);
         var messageHeight = Math.Max(42 * scale, bounds.Height - titleHeight - inputHeight);
 
@@ -87,11 +87,7 @@ public static class WeChatLayoutCalculator
         var titleRect = new Rect(bounds.Left + sideWidth, bounds.Top, contentWidth, titleHeight);
         var messageRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight, contentWidth, messageHeight);
         var inputRect = new Rect(bounds.Left + sideWidth, bounds.Top + titleHeight + messageHeight, contentWidth, inputHeight);
-        var inputEditorRect = new Rect(
-            inputRect.Left + 24 * scale,
-            inputRect.Top + 44 * scale,
-            Math.Max(1, inputRect.Width - 48 * scale),
-            Math.Max(18 * scale, inputRect.Height - 60 * scale));
+        var inputEditorRect = CreateInputEditorRect(inputRect, scale);
 
         return new WeChatLayout(
             sideRect,
@@ -118,6 +114,28 @@ public static class WeChatLayoutCalculator
             inputRect,
             bodyRect,
             []);
+    }
+
+    public static Rect CreateInputEditorRect(Rect inputRect, double scale)
+    {
+        if (inputRect.IsEmpty || inputRect.Width <= 0 || inputRect.Height <= 0)
+        {
+            return Rect.Empty;
+        }
+
+        scale = Math.Max(0.1, scale);
+        var horizontalInset = Clamp(inputRect.Width * 0.045, 18 * scale, 28 * scale);
+        var topInset = Clamp(inputRect.Height * 0.08, 8 * scale, 14 * scale);
+        var bottomReserved = Clamp(inputRect.Height * 0.40, 42 * scale, 62 * scale);
+        var maxBottom = Math.Max(inputRect.Top + topInset + 24 * scale, inputRect.Bottom - bottomReserved);
+        var height = Math.Max(24 * scale, maxBottom - inputRect.Top - topInset);
+        height = Math.Min(height, Math.Max(1, inputRect.Height - topInset - 8 * scale));
+
+        return new Rect(
+            inputRect.Left + horizontalInset,
+            inputRect.Top + topInset,
+            Math.Max(1, inputRect.Width - horizontalInset * 2),
+            Math.Max(1, height));
     }
 
     private static IReadOnlyList<Rect> CreateConversationRows(Rect sideRect, double scale)

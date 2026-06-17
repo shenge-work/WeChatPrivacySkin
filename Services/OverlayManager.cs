@@ -335,6 +335,13 @@ public sealed class OverlayManager : IDisposable
             return CreateRevealZone(windowBounds, RevealZoneKind.ConversationList, layout.ConversationList, 14, "会话列表");
         }
 
+        if (mode == PrivacyMode.SpotlightChat &&
+            !layout.InputEditor.IsEmpty &&
+            layout.InputEditor.Contains(cursorPoint))
+        {
+            return CreateRevealZone(windowBounds, RevealZoneKind.InputEditor, layout.InputEditor, 12, "编辑区");
+        }
+
         if (!layout.MessageArea.IsEmpty && layout.MessageArea.Contains(cursorPoint))
         {
             return CreateRevealZone(windowBounds, RevealZoneKind.MessageArea, layout.MessageArea, 18, "消息区");

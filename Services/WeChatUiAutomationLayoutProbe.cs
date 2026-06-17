@@ -33,6 +33,7 @@ public static class WeChatUiAutomationLayoutProbe
             }
 
             var fallbackPhysical = WeChatLayoutCalculator.Create(physicalWindowBounds, false, 1);
+            var fallbackOutput = WeChatLayoutCalculator.Create(outputBounds, false, outputScale);
             var candidates = CollectCandidates(root, physicalWindowBounds);
             if (candidates.Count == 0)
             {
@@ -41,18 +42,16 @@ public static class WeChatUiAutomationLayoutProbe
 
             var rowRects = DetectConversationRows(candidates, fallbackPhysical);
             var inputEditor = DetectInputEditor(candidates, fallbackPhysical);
+            var inputArea = DetectInputArea(candidates, fallbackPhysical, inputEditor) ?? fallbackPhysical.InputArea;
             if (rowRects.Count < 2 && inputEditor is null)
             {
                 return null;
             }
 
-            var sideRight = rowRects.Count >= 2
-                ? Math.Clamp(rowRects.Max(rect => rect.Right) + 8, physicalWindowBounds.Left + 120, physicalWindowBounds.Left + physicalWindowBounds.Width * 0.42)
-                : fallbackPhysical.ConversationList.Right;
+            var sideRight = ResolveSideRight(physicalWindowBounds, fallbackPhysical, rowRects, inputArea);
 
             var sideWidth = Math.Max(1, sideRight - physicalWindowBounds.Left);
             var titleHeight = fallbackPhysical.TitleBar.Height;
-            var inputArea = fallbackPhysical.InputArea;
             var contentWidth = Math.Max(1, physicalWindowBounds.Width - sideWidth);
             var title = new Rect(physicalWindowBounds.Left + sideWidth, physicalWindowBounds.Top, contentWidth, titleHeight);
             var message = new Rect(
@@ -64,7 +63,7 @@ public static class WeChatUiAutomationLayoutProbe
 
             var rows = rowRects.Count >= 2
                 ? rowRects.Select(rect => MapRect(physicalWindowBounds, outputBounds, rect)).ToArray()
-                : WeChatLayoutCalculator.Create(outputBounds, false, outputScale).ConversationRows;
+                : fallbackOutput.ConversationRows;
 
             return new WeChatLayout(
                 MapRect(physicalWindowBounds, outputBounds, side),
@@ -72,7 +71,7 @@ public static class WeChatUiAutomationLayoutProbe
                 MapRect(physicalWindowBounds, outputBounds, message),
                 MapRect(physicalWindowBounds, outputBounds, inputArea),
                 inputEditor is null
-                    ? WeChatLayoutCalculator.Create(outputBounds, false, outputScale).InputEditor
+                    ? fallbackOutput.InputEditor
                     : MapRect(physicalWindowBounds, outputBounds, inputEditor.Value),
                 Rect.Empty,
                 rows);
@@ -145,13 +144,43 @@ public static class WeChatUiAutomationLayoutProbe
         IReadOnlyList<ElementCandidate> candidates,
         WeChatLayout fallback)
     {
-        var input = fallback.InputArea;
+        var input = CreateInputSearchArea(fallback);
         var candidatesInInput = candidates
             .Where(candidate => IsInputEditorLike(candidate, input))
-            .OrderByDescending(candidate => candidate.Rect.Width * candidate.Rect.Height)
+            .OrderByDescending(ScoreInputEditorCandidate)
+            .ThenByDescending(candidate => candidate.Rect.Width)
+            .ThenBy(candidate => candidate.Rect.Height)
             .ToArray();
 
         return candidatesInInput.FirstOrDefault()?.Rect;
+    }
+
+    private static Rect? DetectInputArea(
+        IReadOnlyList<ElementCandidate> candidates,
+        WeChatLayout fallback,
+        Rect? inputEditor)
+    {
+        var inputSearchArea = CreateInputSearchArea(fallback);
+        var panels = candidates
+            .Where(candidate => IsInputPanelLike(candidate, fallback, inputSearchArea, inputEditor))
+            .OrderByDescending(candidate => ScoreInputPanelCandidate(candidate, inputEditor))
+            .ThenBy(candidate => candidate.Rect.Top)
+            .ThenBy(candidate => candidate.Rect.Width * candidate.Rect.Height)
+            .ToArray();
+
+        var panel = panels.FirstOrDefault();
+        if (panel is null)
+        {
+            return inputEditor is null ? null : CreateInputAreaFromEditor(fallback, inputEditor.Value);
+        }
+
+        var rect = panel.Rect;
+        if (inputEditor is not null && (rect.Height <= inputEditor.Value.Height + 8 || rect.Width < inputEditor.Value.Width))
+        {
+            return CreateInputAreaFromEditor(fallback, inputEditor.Value);
+        }
+
+        return rect;
     }
 
     private static bool IsRowLike(ElementCandidate candidate, Rect side)
@@ -187,9 +216,147 @@ public static class WeChatUiAutomationLayoutProbe
             return false;
         }
 
+        if (rect.Height > input.Height * 0.72 || rect.Bottom > input.Bottom - 24)
+        {
+            return false;
+        }
+
         return candidate.ControlType == ControlType.Edit ||
                candidate.ControlType == ControlType.Document ||
                candidate.ClassName.Contains("edit", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsInputPanelLike(
+        ElementCandidate candidate,
+        WeChatLayout fallback,
+        Rect inputSearchArea,
+        Rect? inputEditor)
+    {
+        var rect = candidate.Rect;
+        if (!inputSearchArea.Contains(new WpfPoint(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2)))
+        {
+            return false;
+        }
+
+        if (rect.Height < 44 || rect.Height > Math.Max(240, fallback.InputArea.Height * 1.9))
+        {
+            return false;
+        }
+
+        if (rect.Width < Math.Max(120, fallback.MessageArea.Width * 0.45))
+        {
+            return false;
+        }
+
+        if (inputEditor is not null && !ContainsRectWithTolerance(rect, inputEditor.Value, 8))
+        {
+            return false;
+        }
+
+        return candidate.ClassName.Contains("ChatInput", StringComparison.OrdinalIgnoreCase) ||
+               candidate.ClassName.Contains("Input", StringComparison.OrdinalIgnoreCase) ||
+               candidate.ControlType == ControlType.Pane ||
+               candidate.ControlType == ControlType.Group;
+    }
+
+    private static Rect CreateInputSearchArea(WeChatLayout fallback)
+    {
+        var input = fallback.InputArea;
+        var topExpansion = Math.Max(72, input.Height * 0.55);
+        return new Rect(
+            fallback.MessageArea.Left,
+            Math.Max(fallback.TitleBar.Bottom, input.Top - topExpansion),
+            fallback.MessageArea.Width,
+            input.Height + topExpansion + 8);
+    }
+
+    private static Rect CreateInputAreaFromEditor(WeChatLayout fallback, Rect editor)
+    {
+        var top = Math.Min(editor.Top - 10, fallback.InputArea.Top);
+        var bottom = Math.Max(editor.Bottom + 48, fallback.InputArea.Bottom);
+        return new Rect(
+            Math.Min(editor.Left - 20, fallback.InputArea.Left),
+            top,
+            Math.Max(editor.Width + 40, fallback.InputArea.Width),
+            Math.Max(1, bottom - top));
+    }
+
+    private static int ScoreInputEditorCandidate(ElementCandidate candidate)
+    {
+        var score = 0;
+        if (candidate.ClassName.Contains("ChatInputField", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 80;
+        }
+
+        if (candidate.ControlType == ControlType.Edit)
+        {
+            score += 40;
+        }
+        else if (candidate.ControlType == ControlType.Document)
+        {
+            score += 28;
+        }
+
+        if (candidate.ClassName.Contains("edit", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 18;
+        }
+
+        return score;
+    }
+
+    private static int ScoreInputPanelCandidate(ElementCandidate candidate, Rect? inputEditor)
+    {
+        var score = 0;
+        if (candidate.ClassName.Contains("ChatInputView", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 80;
+        }
+        else if (candidate.ClassName.Contains("ChatInput", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 52;
+        }
+        else if (candidate.ClassName.Contains("Input", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 24;
+        }
+
+        if (inputEditor is not null && ContainsRectWithTolerance(candidate.Rect, inputEditor.Value, 8))
+        {
+            score += 20;
+        }
+
+        return score;
+    }
+
+    private static double ResolveSideRight(
+        Rect physicalWindowBounds,
+        WeChatLayout fallback,
+        IReadOnlyList<Rect> rowRects,
+        Rect inputArea)
+    {
+        var min = physicalWindowBounds.Left + 120;
+        var max = physicalWindowBounds.Left + physicalWindowBounds.Width * 0.50;
+        if (rowRects.Count >= 2)
+        {
+            return Math.Clamp(rowRects.Max(rect => rect.Right) + 8, min, max);
+        }
+
+        if (!inputArea.IsEmpty && inputArea.Left > min && inputArea.Left < max)
+        {
+            return Math.Clamp(inputArea.Left, min, max);
+        }
+
+        return fallback.ConversationList.Right;
+    }
+
+    private static bool ContainsRectWithTolerance(Rect outer, Rect inner, double tolerance)
+    {
+        return outer.Left <= inner.Left + tolerance &&
+               outer.Top <= inner.Top + tolerance &&
+               outer.Right >= inner.Right - tolerance &&
+               outer.Bottom >= inner.Bottom - tolerance;
     }
 
     private static Rect MapRect(Rect physicalWindowBounds, Rect outputBounds, Rect physicalRect)
